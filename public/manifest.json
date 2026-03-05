@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "GTM Tag Assistant",
+  "version": "2.0.0",
+  "description": "GA4 Specification & GTM Audit Tool",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://www.googleapis.com/*",
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["style.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {},
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*", "content.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
