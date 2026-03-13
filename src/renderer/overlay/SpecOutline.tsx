@@ -153,8 +153,10 @@ const SpecOutline: React.FC = () => {
               className={`gtm-spec-label-container ${isHovered ? 'expanded' : ''}`}
               style={{
                 position: 'absolute',
-                top: isTopSpaceTight ? 'calc(100% + 6px)' : 'auto',
-                bottom: !isTopSpaceTight ? 'calc(100% + 6px)' : 'auto',
+                top: isTopSpaceTight ? '100%' : 'auto',
+                bottom: !isTopSpaceTight ? '100%' : 'auto',
+                paddingTop: isTopSpaceTight ? '6px' : '0',
+                paddingBottom: !isTopSpaceTight ? '6px' : '0',
                 left: '-2px',
                 display: 'flex',
                 flexDirection: 'column',
