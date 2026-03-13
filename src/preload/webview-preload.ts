@@ -165,7 +165,10 @@ document.addEventListener('mouseover', (e) => {
 
 // 마우스 이벤트 차단 (mousedown, mouseup)
 const blockEventInSpecMode = (e: MouseEvent) => {
-  if (specModeActive) {
+  // Alt, Cmd(Meta), Ctrl 키를 누르고 클릭하면 무조건 허용 (강제 내비게이션용)
+  if (e.altKey || e.metaKey || e.ctrlKey) return;
+  
+  if (specModeActive && selectionEnabled) {
     e.preventDefault();
     e.stopPropagation();
   }
@@ -175,10 +178,13 @@ document.addEventListener('mousedown', blockEventInSpecMode, true);
 document.addEventListener('mouseup', blockEventInSpecMode, true);
 
 document.addEventListener('click', (e) => {
-  const target = e.target as HTMLElement;
+  const target = (e.target as HTMLElement).closest('a, button, input, select, textarea') || e.target as HTMLElement;
   if (!target) return;
 
-  if (specModeActive) {
+  // Alt, Cmd(Meta), Ctrl 키를 누르고 클릭하면 무조건 허용
+  if (e.altKey || e.metaKey || e.ctrlKey) return;
+
+  if (specModeActive && selectionEnabled) {
     e.preventDefault();
     e.stopPropagation();
   }
@@ -202,8 +208,8 @@ document.addEventListener('click', (e) => {
       y: rect.y + offset.y
     },
     outerHTML: target.outerHTML.substring(0, 1000),
-    selector: getSelector(target),
-    recommendations: getSelectorRecommendations(target),
+    selector: getSelector(target as HTMLElement),
+    recommendations: getSelectorRecommendations(target as HTMLElement),
     isSubframe: !isTopFrame,
     frameUrl: window.location.href
   });

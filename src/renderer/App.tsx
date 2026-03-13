@@ -96,17 +96,16 @@ const App: React.FC = () => {
 
     const handleNavigate = (event: any) => {
       const newUrl = event.url;
-      console.log('[App] Webview navigated to:', newUrl);
+      const isSPA = event.type === 'did-navigate-in-page';
+      console.log(`[App] Webview navigated (${isSPA ? 'SPA' : 'Hard'}):`, newUrl);
       
-      // Update initialUrl so React doesn't revert the src on re-renders
-      setInitialUrl(newUrl);
+      // We don't update initialUrl here to avoid React re-rendering the src attribute
+      // and causing a hard reload on SPA transitions.
       
-      // Only update the input if the user is not actively typing
       if (!isEditingUrl) {
         setInputUrl(newUrl);
       }
       
-      // Save to storage
       if (newUrl && newUrl !== 'about:blank') {
         storage.setLastUrl(newUrl);
       }
@@ -246,8 +245,12 @@ const App: React.FC = () => {
           <div className="webview-container">
             <webview
               {...({
-                ref: webviewCallbackRef,
-                src: initialUrl,
+                ref: (node: any) => {
+                  webviewCallbackRef(node);
+                  if (node && initialUrl && !node.src) {
+                    node.src = initialUrl;
+                  }
+                },
                 preload: preloadPath,
                 style: { width: '100%', height: '100%' },
                 webpreferences: "contextIsolation=no, nodeIntegration=yes",
