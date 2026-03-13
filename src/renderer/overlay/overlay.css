@@ -13,7 +13,7 @@
   position: absolute;
   border-radius: 8px;
   box-sizing: border-box;
-  transition: border-color 0.2s, background-color 0.2s;
+  transition: border-color 0.1s, background-color 0.1s;
 }
 
 /* Hover effects (disabled in View mode via inline style override or class) */

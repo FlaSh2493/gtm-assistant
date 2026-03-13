@@ -116,6 +116,7 @@ const SpecOutline: React.FC = () => {
               scale: 1,
               backgroundColor: isHovered ? 'rgba(234, 88, 12, 0.25)' : 'rgba(234, 88, 12, 0.05)',
             }}
+            transition={{ duration: 0.1 }}
             className="gtm-spec-group-outline"
             onClick={(e) => {
               // Only handle click in View mode (to open popover via border area)
