@@ -57,6 +57,14 @@ const SpecOutline: React.FC = () => {
       groupsMap.forEach((specList, selector) => {
         newGroups.push({ selector, specs: specList, rect: rects[selector] });
       });
+      
+      // Sort in descending area order so smaller elements render on top of larger ones
+      newGroups.sort((a, b) => {
+        const areaA = a.rect.width * a.rect.height;
+        const areaB = b.rect.width * b.rect.height;
+        return areaB - areaA;
+      });
+
       setGroupedSpecs(newGroups);
     };
 
@@ -106,7 +114,7 @@ const SpecOutline: React.FC = () => {
             animate={{ 
               opacity: 1, 
               scale: 1,
-              backgroundColor: (isHovered && config.mode !== 'view') ? 'rgba(234, 88, 12, 0.25)' : 'rgba(234, 88, 12, 0.05)',
+              backgroundColor: isHovered ? 'rgba(234, 88, 12, 0.25)' : 'rgba(234, 88, 12, 0.05)',
             }}
             className="gtm-spec-group-outline"
             onClick={(e) => {
@@ -137,7 +145,7 @@ const SpecOutline: React.FC = () => {
               boxSizing: 'border-box',
               backdropFilter: (isHovered && config.mode !== 'view') ? 'blur(1.5px)' : 'none',
               transition: 'border-color 0.2s, background-color 0.2s',
-              zIndex: isHovered ? 12 : 10,
+              zIndex: (isHovered && config.mode !== 'view') ? 12 : 10,
             }}
           >
             <div
