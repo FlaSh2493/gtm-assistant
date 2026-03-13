@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, AlertCircle, HelpCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, HelpCircle } from 'lucide-react';
 import { parseGTMGA4Tags, parseGTMTriggers } from './GTMParser';
 import { EXAMPLE_CSV_PLAN, EXAMPLE_GTM_JSON } from './ExampleData';
 import { verifySpecs, VerificationResult } from './VerificationService';
@@ -79,9 +79,9 @@ const VerificationOverlay: React.FC = () => {
   const getStatusIcon = (status: VerificationResult['status'], size = 12) => {
     switch (status) {
       case 'pass': return <CheckCircle size={size} color="white" />;
-      case 'fail': return <AlertCircle size={size} color="white" />;
-      case 'missing': return <HelpCircle size={size} color="white" />;
-      case 'extra': return <AlertCircle size={size} color="white" />;
+      case 'fail': return <XCircle size={size} color="white" />;
+      case 'missing': return <AlertCircle size={size} color="white" />; // 확인필요 (exclamation)
+      case 'extra': return <HelpCircle size={size} color="white" />; // 명세확인필요 (question)
       default: return null;
     }
   };
