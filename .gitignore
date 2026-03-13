@@ -1,2 +1,6 @@
 node_modules/
 dist/
+dist-main/
+dist-preload/
+dist-renderer/
+dist-injected/

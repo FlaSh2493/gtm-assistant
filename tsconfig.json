@@ -15,7 +15,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["chrome"]
+    "types": ["node"]
   },
-  "include": ["src", "popup"]
+  "include": ["src"]
 }

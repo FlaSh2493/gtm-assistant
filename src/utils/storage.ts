@@ -1,17 +1,29 @@
 import { AppConfig, EventSpec } from '../types';
 
+declare global {
+  interface Window {
+    electronAPI: {
+      invoke: (channel: string, ...args: any[]) => Promise<any>;
+      on: (channel: string, func: (...args: any[]) => void) => void;
+      send: (channel: string, ...args: any[]) => void;
+      getPreloadPath: (filename: string) => string;
+    };
+  }
+}
+
 export const STORAGE_KEYS = {
   CONFIG: 'config',
   SPECS_PREFIX: 'specs_',
+  LAST_URL: 'last_url',
 };
 
 export const getStorageKey = (hostname: string) => `${STORAGE_KEYS.SPECS_PREFIX}${hostname}`;
 
 export const storage = {
   getConfig: async (): Promise<AppConfig> => {
-    const result = await chrome.storage.local.get(STORAGE_KEYS.CONFIG);
-    return result[STORAGE_KEYS.CONFIG] || {
-      enabled: false,
+    const config = await window.electronAPI.invoke('store:get', STORAGE_KEYS.CONFIG);
+    return config || {
+      enabled: true,
       mode: 'spec',
       selector: { dataAttributes: ['data-testid', 'data-cy', 'data-action'] },
       showHover: true
@@ -19,13 +31,13 @@ export const storage = {
   },
 
   setConfig: async (config: AppConfig): Promise<void> => {
-    await chrome.storage.local.set({ [STORAGE_KEYS.CONFIG]: config });
+    await window.electronAPI.invoke('store:set', STORAGE_KEYS.CONFIG, config);
   },
 
   getSpecs: async (hostname: string): Promise<EventSpec[]> => {
     const key = getStorageKey(hostname);
-    const result = await chrome.storage.local.get(key);
-    return result[key] || [];
+    const specs = await window.electronAPI.invoke('store:get', key);
+    return specs || [];
   },
 
   saveSpec: async (hostname: string, spec: EventSpec): Promise<void> => {
@@ -39,13 +51,22 @@ export const storage = {
     }
     
     const key = getStorageKey(hostname);
-    await chrome.storage.local.set({ [key]: specs });
+    await window.electronAPI.invoke('store:set', key, specs);
   },
 
   deleteSpec: async (hostname: string, specId: string): Promise<void> => {
     const specs = await storage.getSpecs(hostname);
     const filtered = specs.filter(s => s.id !== specId);
     const key = getStorageKey(hostname);
-    await chrome.storage.local.set({ [key]: filtered });
+    await window.electronAPI.invoke('store:set', key, filtered);
+  },
+
+  getLastUrl: async (): Promise<string> => {
+    const url = await window.electronAPI.invoke('store:get', STORAGE_KEYS.LAST_URL);
+    return url || 'https://www.google.com';
+  },
+
+  setLastUrl: async (url: string): Promise<void> => {
+    await window.electronAPI.invoke('store:set', STORAGE_KEYS.LAST_URL, url);
   }
 };

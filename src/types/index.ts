@@ -2,6 +2,7 @@ export interface EventParameter {
   key: string;
   value?: string;
   description?: string; // Description for verification or planning
+  type?: 'literal' | 'dataLayer' | 'dom' | 'storage' | 'cookie' | 'js';
 }
 
 export interface EventSpec {
@@ -13,7 +14,7 @@ export interface EventSpec {
   category: string;
 
   // Event Info
-  eventType?: 'element' | 'page'; // Type of event
+  eventType?: 'element' | 'page' | 'custom'; // Type of event
   eventId: string; // e.g., EVT-001
   eventName: string; // e.g., view_item
   triggerDescription: string;
@@ -41,7 +42,7 @@ export interface CSVColumn {
 
 export interface AppConfig {
   enabled: boolean;
-  mode: 'spec' | 'verify';
+  mode: 'spec' | 'verify' | 'view';
   showHover: boolean;
   selector: {
     dataAttributes: string[];

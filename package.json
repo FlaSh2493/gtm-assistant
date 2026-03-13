@@ -3,14 +3,18 @@
   "private": true,
   "version": "2.0.0",
   "type": "module",
+  "main": "dist-main/index.mjs",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build && vite build --config vite.content.config.ts",
+    "dev": "vite --config vite.config.mts",
+    "build": "tsc && vite build --config vite.config.mts",
+    "electron:dev": "vite --config vite.config.mts",
+    "electron:build": "tsc && vite build --config vite.config.mts && electron-builder",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "electron-store": "^10.0.0",
     "framer-motion": "^11.2.10",
     "lucide-react": "^0.395.0",
     "react": "^18.3.1",
@@ -19,16 +23,19 @@
     "uuid": "^10.0.0"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.268",
-    "@types/node": "^25.3.1",
+    "@types/node": "^22.10.1",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",
+    "electron": "^34.3.0",
+    "electron-builder": "^25.1.8",
     "postcss": "^8.4.38",
     "typescript": "^5.2.2",
     "vite": "^5.3.1",
-    "vite-plugin-css-injected-by-js": "^3.5.1"
+    "vite-plugin-css-injected-by-js": "^3.5.1",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6"
   }
 }
