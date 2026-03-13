@@ -105,7 +105,10 @@ const SpecOutline: React.FC = () => {
         const isHovered = hoveredGroupId === group.selector;
         const mainSpec = group.specs[0];
         const hasMultiple = group.specs.length > 1;
-        const isTopSpaceTight = group.rect.top < 40;
+
+        // Dynamic height calculation to prevent overflow
+        const estimatedHeight = isHovered ? (group.specs.length * 30 + 10) : 40;
+        const isTopSpaceTight = group.rect.top < estimatedHeight;
 
         return (
           <motion.div
