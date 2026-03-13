@@ -11,7 +11,7 @@ const HoverOutline: React.FC = () => {
     }
   }, [hoveredElement]);
 
-  if (!config.showHover || !hoveredElement || config.mode === 'view') return null;
+  if (!config.showHover || !hoveredElement || config.mode !== 'spec') return null;
 
   const { rect } = hoveredElement;
 
