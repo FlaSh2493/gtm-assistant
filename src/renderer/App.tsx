@@ -2,14 +2,16 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GTMAssistant from './GTMAssistant';
 import { storage } from '../utils/storage';
 import { AppConfig } from '../types';
-import { Power, MousePointer2, ClipboardCheck, Settings, Globe, ChevronLeft, ChevronRight, RotateCw, Eye, CheckCircle2, Home } from 'lucide-react';
+import { Power, MousePointer2, ClipboardCheck, Settings, Globe, ChevronLeft, ChevronRight, RotateCw, Eye, CheckCircle2, Home, Tag } from 'lucide-react';
 import HomeScreen from './HomeScreen';
+import { resolveUrl } from './utils/UrlResolver';
 
 const App: React.FC = () => {
   const [initialUrl, setInitialUrl] = useState<string | null>(null);
   const [inputUrl, setInputUrl] = useState('');
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [showHome, setShowHome] = useState(true);
+  const [isEditingUrl, setIsEditingUrl] = useState(false);
   
   const webviewRef = useRef<any>(null);
   const [preloadPath] = useState(() =>
@@ -25,31 +27,30 @@ const App: React.FC = () => {
       if (lastUrl) {
         setInitialUrl(lastUrl);
         setInputUrl(lastUrl);
-        setShowHome(false);
       } else {
         setInitialUrl('about:blank');
-        setShowHome(true);
       }
+      // Always show home initially
+      setShowHome(true);
     });
   }, []);
-
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputUrl.trim()) return;
+    const targetUrl = resolveUrl(inputUrl);
+    if (!targetUrl) return;
 
-    let targetUrl = inputUrl;
-    if (!targetUrl.startsWith('http')) {
-      targetUrl = `https://${targetUrl}`;
-    }
-    
+    setIsEditingUrl(false);
     setShowHome(false);
-    if (webviewRef.current) {
-      webviewRef.current.loadURL(targetUrl);
-    } else {
-      setInitialUrl(targetUrl);
-    }
+    
+    // Always set initialUrl so the webview src is in sync with our intent
+    setInitialUrl(targetUrl);
     setInputUrl(targetUrl);
-    storage.setLastUrl(targetUrl);
+
+    if (webviewRef.current) {
+      if (webviewRef.current.getURL() !== targetUrl) {
+        webviewRef.current.loadURL(targetUrl);
+      }
+    }
   };
 
   const handleGoHome = () => {
@@ -94,9 +95,21 @@ const App: React.FC = () => {
     };
 
     const handleNavigate = (event: any) => {
-      console.log('[App] Webview navigated to:', event.url);
-      setInputUrl(event.url);
-      storage.setLastUrl(event.url);
+      const newUrl = event.url;
+      console.log('[App] Webview navigated to:', newUrl);
+      
+      // Update initialUrl so React doesn't revert the src on re-renders
+      setInitialUrl(newUrl);
+      
+      // Only update the input if the user is not actively typing
+      if (!isEditingUrl) {
+        setInputUrl(newUrl);
+      }
+      
+      // Save to storage
+      if (newUrl && newUrl !== 'about:blank') {
+        storage.setLastUrl(newUrl);
+      }
     };
 
     const handleFailLoad = (event: any) => {
@@ -133,8 +146,13 @@ const App: React.FC = () => {
     <div className="app-container">
       <header className="app-header">
         <div className="header-left">
-          <span className="logo">🏷</span>
-          <h1>GTM GA Assistant</h1>
+          <div className="brand-icon">
+            <Tag size={20} strokeWidth={2.5} />
+          </div>
+          <div className="brand-text">
+            <span className="brand-main">GTM</span>
+            <span className="brand-sub">GA Assistant</span>
+          </div>
         </div>
         
         <div className="nav-controls">
@@ -149,7 +167,14 @@ const App: React.FC = () => {
           <input 
             type="text" 
             value={inputUrl} 
-            onChange={(e) => setInputUrl(e.target.value)}
+            onChange={(e) => {
+              setInputUrl(e.target.value);
+              setIsEditingUrl(true);
+            }}
+            onBlur={() => {
+              // Optionally revert to actual URL if not submitted, 
+              // but let's keep it for now as user might still want to submit
+            }}
             placeholder="Enter URL to audit..."
           />
         </form>
@@ -190,17 +215,33 @@ const App: React.FC = () => {
 
       <main className="app-main">
         {showHome ? (
-          <HomeScreen onNavigate={(url) => {
-            setInputUrl(url);
-            // Manually trigger submit logic
-            let targetUrl = url;
-            if (!targetUrl.startsWith('http')) {
-              targetUrl = `https://${targetUrl}`;
-            }
-            setShowHome(false);
-            setInitialUrl(targetUrl);
-            storage.setLastUrl(targetUrl);
-          }} />
+          <HomeScreen 
+            url={inputUrl}
+            onUrlChange={(val) => {
+              setInputUrl(val);
+              setIsEditingUrl(true);
+            }}
+            lastUrl={initialUrl !== 'about:blank' ? initialUrl : null}
+            onNavigate={(url, mode) => {
+              const targetUrl = resolveUrl(url);
+              if (!targetUrl) return;
+              
+              setInputUrl(targetUrl);
+              setInitialUrl(targetUrl); // Ensure initialUrl is set BEFORE webview mounts
+              setIsEditingUrl(false);
+              setShowHome(false);
+              
+              if (webviewRef.current) {
+                if (webviewRef.current.getURL() !== targetUrl) {
+                  webviewRef.current.loadURL(targetUrl);
+                }
+              }
+              
+              if (mode && config) {
+                updateConfigInAppOrAssist({ ...config, mode });
+              }
+            }} 
+          />
         ) : (
           <div className="webview-container">
             <webview

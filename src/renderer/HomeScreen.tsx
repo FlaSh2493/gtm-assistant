@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Globe, ArrowRight, Shield, Layout, ClipboardCheck } from 'lucide-react';
+import { Globe, ArrowRight, Shield, Layout, ClipboardCheck, History, ExternalLink } from 'lucide-react';
 
 interface HomeScreenProps {
-  onNavigate: (url: string) => void;
+  url: string;
+  onUrlChange: (url: string) => void;
+  lastUrl: string | null;
+  onNavigate: (url: string, mode?: 'spec' | 'verify' | 'view') => void;
 }
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
-  const [url, setUrl] = useState('');
-
+const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, lastUrl, onNavigate }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (url.trim()) {
@@ -16,9 +17,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
     }
   };
 
+  const quickLinks = [
+    { name: 'Google Tag Manager', url: 'https://tagmanager.google.com', icon: <Layout size={16} /> },
+    { name: 'Google Analytics', url: 'https://analytics.google.com', icon: <Shield size={16} /> },
+  ];
+
   return (
     <div className="home-screen">
-      <div className="home-bg-glow"></div>
+      <div className="home-bg-blobs">
+        <div className="blob blob-1"></div>
+        <div className="blob blob-2"></div>
+        <div className="blob blob-3"></div>
+      </div>
       
       <motion.div 
         className="home-content"
@@ -26,7 +36,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <div className="home-logo">🏷</div>
+        <motion.div 
+          className="home-logo"
+          animate={{ rotate: [0, 5, -5, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        >
+          🏷
+        </motion.div>
+        
         <motion.h1 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -34,6 +51,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         >
           GTM GA Assistant
         </motion.h1>
+        
         <motion.p 
           className="home-subtitle"
           initial={{ opacity: 0 }}
@@ -55,9 +73,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
             <Globe className="search-icon" size={20} />
             <input 
               type="text" 
-              placeholder="검수할 사이트 URL을 입력하세요 (예: google.com)"
+              placeholder="검수할 사이트 URL을 입력하세요"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => onUrlChange(e.target.value)}
               autoFocus
             />
           </div>
@@ -66,24 +84,58 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
           </button>
         </motion.form>
 
+        <div className="home-secondary-actions">
+          {lastUrl && (
+            <motion.div 
+              className="recent-sites"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              <div className="section-label"><History size={14} /> 최근 방문</div>
+              <button className="recent-item" onClick={() => onNavigate(lastUrl)}>
+                <span className="recent-url">{lastUrl}</span>
+                <ArrowRight size={14} />
+              </button>
+            </motion.div>
+          )}
+
+          <motion.div 
+            className="quick-links"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+          >
+            <div className="section-label"><ExternalLink size={14} /> 바로가기</div>
+            <div className="links-grid">
+              {quickLinks.map((link) => (
+                <a key={link.name} href={link.url} target="_blank" rel="noopener noreferrer" className="link-item">
+                  {link.icon}
+                  <span>{link.name}</span>
+                </a>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+
         <motion.div 
           className="home-features"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.7 }}
         >
-          <div className="feature-item">
+          <button className="feature-item" onClick={() => onNavigate(url || 'about:blank', 'spec')}>
             <div className="feature-icon"><Layout size={20} /></div>
             <span>명세 작성</span>
-          </div>
-          <div className="feature-item">
+          </button>
+          <button className="feature-item highlight" onClick={() => onNavigate(url || 'about:blank', 'verify')}>
             <div className="feature-icon"><ClipboardCheck size={20} /></div>
-            <span>GTM 검수</span>
-          </div>
-          <div className="feature-item">
+            <span>빠른 검수 (파일 업로드)</span>
+          </button>
+          <button className="feature-item" onClick={() => onNavigate(url || 'about:blank', 'view')}>
             <div className="feature-icon"><Shield size={20} /></div>
             <span>정합성 확인</span>
-          </div>
+          </button>
         </motion.div>
       </motion.div>
       
