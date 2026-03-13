@@ -4,12 +4,27 @@ import { FileText } from 'lucide-react';
 import './overlay.css';
 
 const PageviewBadge: React.FC = () => {
-  const { specs, webviewRef } = useGTMAssistant();
+  const { specs, webviewRef, isWebviewReady } = useGTMAssistant();
   
-  const currentUrl = webviewRef.current?.getURL() || '';
-  const currentHostname = currentUrl ? new URL(currentUrl).hostname : '';
-  const currentPathname = currentUrl ? new URL(currentUrl).pathname : '';
-  const originPath = currentUrl ? new URL(currentUrl).origin + currentPathname : '';
+  // Safe URL fetching
+  let currentUrl = '';
+  if (isWebviewReady && webviewRef.current) {
+    try {
+      currentUrl = webviewRef.current.getURL() || '';
+    } catch (e) {
+      console.warn('[PageviewBadge] Failed to get URL:', e);
+    }
+  }
+
+  if (!currentUrl || currentUrl === 'about:blank') return null;
+
+  let originPath = '';
+  try {
+    const urlObj = new URL(currentUrl);
+    originPath = urlObj.origin + urlObj.pathname;
+  } catch (e) {
+    return null;
+  }
 
   const pageSpecs = specs.filter(s => 
     s.eventType === 'page' && 
