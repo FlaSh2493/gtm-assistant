@@ -3,7 +3,7 @@ import { useGTMAssistant } from '../GTMAssistant';
 import { EventParameter, EventSpec } from '../../types';
 import { storage } from '../../utils/storage';
 import { v4 as uuidv4 } from 'uuid';
-import { X, Plus, Trash2, CheckCircle, Settings, Sparkles } from 'lucide-react';
+import { X, Plus, Trash2, CheckCircle, Settings, Sparkles, Copy, Check } from 'lucide-react';
 
 
 const SpecPopover: React.FC = () => {
@@ -26,6 +26,15 @@ const SpecPopover: React.FC = () => {
   const [relatedSpecs, setRelatedSpecs] = useState<EventSpec[]>([]);
   const [activeSpecId, setActiveSpecId] = useState<string | null>(null);
   const [showRecommendations, setShowRecommendations] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyUrl = () => {
+    if (form.pageUrl) {
+      navigator.clipboard.writeText(form.pageUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
 
 
@@ -206,12 +215,22 @@ const SpecPopover: React.FC = () => {
         
         <div className="form-group">
           <label>페이지 URL</label>
-          <input 
-            type="text" 
-            value={form.pageUrl} 
-            onChange={e => setForm(prev => ({ ...prev, pageUrl: e.target.value }))}
-            disabled={config.mode === 'view'}
-          />
+          <div className="input-with-action">
+            <input 
+              type="text" 
+              value={form.pageUrl} 
+              onChange={e => setForm(prev => ({ ...prev, pageUrl: e.target.value }))}
+              disabled={config.mode === 'view'}
+            />
+            <button 
+              type="button" 
+              className="action-icon-btn" 
+              onClick={handleCopyUrl}
+              title="URL 복사"
+            >
+              {copied ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+            </button>
+          </div>
         </div>
         
         <div className="form-row">
@@ -238,7 +257,7 @@ const SpecPopover: React.FC = () => {
         </div>
         
         <div className="form-group">
-          <label>트리거 설명</label>
+          <label>태그 설명</label>
           <input 
             type="text" 
             placeholder={form.eventType === 'page' ? '페이지 로드 시' : '상품 상세 페이지 혹은 버튼 클릭 시'}
@@ -251,7 +270,7 @@ const SpecPopover: React.FC = () => {
         {form.eventType !== 'page' && (
           <div className="form-group">
             <div className="label-with-badge">
-              <label>CSS Selector (화면 표시/메모용)</label>
+              <label>대상 요소 위치 (Selector)</label>
               <button 
                 type="button"
                 className={`recommend-toggle-badge ${showRecommendations ? 'active' : ''}`}

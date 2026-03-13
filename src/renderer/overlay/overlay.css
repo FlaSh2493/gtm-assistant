@@ -159,6 +159,13 @@
   color: #9ca3af;
   padding: 4px;
   display: flex;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #f3f4f6;
+  color: #4b5563;
 }
 
 .popover-body {
@@ -431,7 +438,6 @@ input.invalid {
   padding: 2px 8px;
   border-radius: 12px;
   font-weight: 800;
-  margin-bottom: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -444,6 +450,36 @@ input.invalid {
 .event-type-badge.page {
   background: #fef3c7;
   color: #92400e;
+}
+
+.input-with-action {
+  display: flex;
+  gap: 8px;
+}
+
+.action-icon-btn {
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  color: #6b7280;
+}
+
+.action-icon-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  color: #374151;
+}
+
+.action-icon-btn:active {
+  background: #f3f4f6;
 }
 
 /* PageviewBadge.tsx Styles */

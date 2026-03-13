@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GTMAssistant from './GTMAssistant';
 import { storage } from '../utils/storage';
 import { AppConfig } from '../types';
-import { Power, MousePointer2, ClipboardCheck, Settings, Globe, ChevronLeft, ChevronRight, RotateCw, Eye, CheckCircle2 } from 'lucide-react';
+import { Power, MousePointer2, ClipboardCheck, Settings, Globe, ChevronLeft, ChevronRight, RotateCw, Eye, CheckCircle2, Home } from 'lucide-react';
+import HomeScreen from './HomeScreen';
 
 const App: React.FC = () => {
   const [initialUrl, setInitialUrl] = useState<string | null>(null);
   const [inputUrl, setInputUrl] = useState('');
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const [showHome, setShowHome] = useState(true);
   
   const webviewRef = useRef<any>(null);
   const [preloadPath] = useState(() =>
@@ -20,23 +22,39 @@ const App: React.FC = () => {
     
     // 2. 마지막 URL 로드 및 초기 로딩 주소 설정
     storage.getLastUrl().then(lastUrl => {
-      setInitialUrl(lastUrl);
-      setInputUrl(lastUrl);
+      if (lastUrl) {
+        setInitialUrl(lastUrl);
+        setInputUrl(lastUrl);
+        setShowHome(false);
+      } else {
+        setInitialUrl('about:blank');
+        setShowHome(true);
+      }
     });
   }, []);
 
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!inputUrl.trim()) return;
+
     let targetUrl = inputUrl;
     if (!targetUrl.startsWith('http')) {
       targetUrl = `https://${targetUrl}`;
     }
     
+    setShowHome(false);
     if (webviewRef.current) {
       webviewRef.current.loadURL(targetUrl);
+    } else {
+      setInitialUrl(targetUrl);
     }
     setInputUrl(targetUrl);
     storage.setLastUrl(targetUrl);
+  };
+
+  const handleGoHome = () => {
+    setShowHome(true);
+    setInputUrl('');
   };
 
   const updateConfigInAppOrAssist = async (newConfig: AppConfig) => {
@@ -120,6 +138,7 @@ const App: React.FC = () => {
         </div>
         
         <div className="nav-controls">
+          <button onClick={handleGoHome} title="홈으로"><Home size={18} /></button>
           <button onClick={handleBack} title="뒤로 가기"><ChevronLeft size={20} /></button>
           <button onClick={handleForward} title="앞으로 가기"><ChevronRight size={20} /></button>
           <button onClick={handleReload} title="새로고침"><RotateCw size={18} /></button>
@@ -170,25 +189,39 @@ const App: React.FC = () => {
       </header>
 
       <main className="app-main">
-        <div className="webview-container">
-          <webview
-            {...({
-              ref: webviewCallbackRef,
-              src: initialUrl,
-              preload: preloadPath,
-              style: { width: '100%', height: '100%' },
-              webpreferences: "contextIsolation=no, nodeIntegration=yes",
-              nodeintegrationinsubframes: "true",
-              allowpopups: "true"
-            } as any)}
-          />
-          {/* Overlay will be rendered here, positioned matching webview content */}
-          <GTMAssistant 
-            webviewRef={webviewRef} 
-            config={config} 
-            setConfig={setConfig} 
-          />
-        </div>
+        {showHome ? (
+          <HomeScreen onNavigate={(url) => {
+            setInputUrl(url);
+            // Manually trigger submit logic
+            let targetUrl = url;
+            if (!targetUrl.startsWith('http')) {
+              targetUrl = `https://${targetUrl}`;
+            }
+            setShowHome(false);
+            setInitialUrl(targetUrl);
+            storage.setLastUrl(targetUrl);
+          }} />
+        ) : (
+          <div className="webview-container">
+            <webview
+              {...({
+                ref: webviewCallbackRef,
+                src: initialUrl,
+                preload: preloadPath,
+                style: { width: '100%', height: '100%' },
+                webpreferences: "contextIsolation=no, nodeIntegration=yes",
+                nodeintegrationinsubframes: "true",
+                allowpopups: "true"
+              } as any)}
+            />
+            {/* Overlay will be rendered here, positioned matching webview content */}
+            <GTMAssistant 
+              webviewRef={webviewRef} 
+              config={config} 
+              setConfig={setConfig} 
+            />
+          </div>
+        )}
       </main>
     </div>
   );
