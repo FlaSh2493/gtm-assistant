@@ -7,7 +7,7 @@ import { X, Plus, Trash2, CheckCircle, Settings, Sparkles } from 'lucide-react';
 
 
 const SpecPopover: React.FC = () => {
-  const { selectedElement, setSelectedElement, refreshSpecs, editingSpec, setEditingSpec, specs, webviewRef } = useGTMAssistant();
+  const { selectedElement, setSelectedElement, refreshSpecs, editingSpec, setEditingSpec, specs, webviewRef, config } = useGTMAssistant();
   const [form, setForm] = useState<Partial<EventSpec>>({
     eventType: 'element',
     pageUrl: '',
@@ -184,13 +184,15 @@ const SpecPopover: React.FC = () => {
                             #{idx + 1}
                         </button>
                     ))}
-                    <button 
-                        className={`event-tab add ${activeSpecId === 'new' ? 'active' : ''}`}
-                        onClick={handleAddNewEvent}
-                        title="다른 이벤트 추가"
-                    >
-                        <Plus size={12} />
-                    </button>
+                    {config.mode !== 'view' && (
+                      <button 
+                          className={`event-tab add ${activeSpecId === 'new' ? 'active' : ''}`}
+                          onClick={handleAddNewEvent}
+                          title="다른 이벤트 추가"
+                      >
+                          <Plus size={12} />
+                      </button>
+                    )}
                 </div>
             )}
         </div>
@@ -208,6 +210,7 @@ const SpecPopover: React.FC = () => {
             type="text" 
             value={form.pageUrl} 
             onChange={e => setForm(prev => ({ ...prev, pageUrl: e.target.value }))}
+            disabled={config.mode === 'view'}
           />
         </div>
         
@@ -219,6 +222,7 @@ const SpecPopover: React.FC = () => {
                     placeholder="EVT-001"
                     value={form.eventId} 
                     onChange={e => setForm(prev => ({ ...prev, eventId: e.target.value }))}
+                    disabled={config.mode === 'view'}
                 />
             </div>
             <div className="form-group">
@@ -228,6 +232,7 @@ const SpecPopover: React.FC = () => {
                     placeholder="click_button"
                     value={form.eventName} 
                     onChange={e => setForm(prev => ({ ...prev, eventName: e.target.value }))}
+                    disabled={config.mode === 'view'}
                 />
             </div>
         </div>
@@ -262,6 +267,7 @@ const SpecPopover: React.FC = () => {
                 value={form.selector} 
                 onChange={e => setForm(prev => ({ ...prev, selector: e.target.value }))}
                 placeholder="CSS Selector"
+                disabled={config.mode === 'view'}
               />
               {selectorValid && <CheckCircle size={16} className="valid-icon" />}
             </div>
@@ -309,6 +315,7 @@ const SpecPopover: React.FC = () => {
                       placeholder="키 (아이템ID)"
                       value={p.key}
                       onChange={e => handleParamChange(i, 'key', e.target.value)}
+                      disabled={config.mode === 'view'}
                   />
                   <input
                       type="text"
@@ -316,30 +323,41 @@ const SpecPopover: React.FC = () => {
                       placeholder="설명"
                       value={p.description || ''}
                       onChange={e => handleParamChange(i, 'description', e.target.value)}
+                      disabled={config.mode === 'view'}
                   />
-                  <div className="param-actions">
-                    <button className="remove-param-btn" onClick={() => handleRemoveParam(i)}>
-                        <Trash2 size={14} />
-                    </button>
-                  </div>
+                  {config.mode !== 'view' && (
+                    <div className="param-actions">
+                      <button className="remove-param-btn" onClick={() => handleRemoveParam(i)}>
+                          <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
             ))}
           </div>
-          <button className="add-param-btn" onClick={handleAddParam}>
-            <Plus size={14} /> 매개변수 직접 추가
-          </button>
+          {config.mode !== 'view' && (
+            <button className="add-param-btn" onClick={handleAddParam}>
+              <Plus size={14} /> 매개변수 직접 추가
+            </button>
+          )}
         </div>
       </div>
 
       <div className="popover-footer">
-        {form.id && (
+        {form.id && config.mode !== 'view' && (
             <button className="delete-btn" onClick={handleDelete}>
                 <Trash2 size={14} /> 삭제
             </button>
         )}
         <div style={{ flex: 1 }}></div>
-        <button className="cancel-btn" onClick={handleClose}>취소</button>
-        <button className="save-btn" onClick={handleSave}>저장</button>
+        {config.mode === 'view' ? (
+          <button className="cancel-btn" onClick={handleClose}>닫기</button>
+        ) : (
+          <>
+            <button className="cancel-btn" onClick={handleClose}>취소</button>
+            <button className="save-btn" onClick={handleSave}>저장</button>
+          </>
+        )}
       </div>
     </div>
   );

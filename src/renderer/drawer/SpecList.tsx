@@ -1,6 +1,6 @@
 import React from 'react';
 import { useGTMAssistant } from '../GTMAssistant';
-import { Plus, Download, FileJson, Settings, X } from 'lucide-react';
+import { Plus, Download, FileJson, Settings, X, Eye } from 'lucide-react';
 import { storage } from '../../utils/storage';
 import './drawer.css';
 
@@ -8,7 +8,7 @@ import { useCSVExport } from '../hooks/useCSVExport';
 import { useGtmExport } from '../hooks/useGtmExport';
 
 const SpecList: React.FC = () => {
-  const { specs, refreshSpecs, setSelectedElement, setEditingSpec, webviewRef } = useGTMAssistant();
+  const { specs, refreshSpecs, setSelectedElement, setEditingSpec, webviewRef, config } = useGTMAssistant();
   const { exportCSV } = useCSVExport();
   const { exportGtmJson } = useGtmExport();
 
@@ -79,9 +79,11 @@ const SpecList: React.FC = () => {
       <div className="list-actions">
         <div className="stats">총 {specs.length}개 항목</div>
         <div className="btn-group">
-          <button className="add-page-btn" onClick={handleAddPageSpec}>
-            <Plus size={14} /> 페이지 추가
-          </button>
+          {config.mode === 'spec' && (
+            <button className="add-page-btn" onClick={handleAddPageSpec}>
+              <Plus size={14} /> 페이지 추가
+            </button>
+          )}
           <button className="export-btn secondary" onClick={handleExportCSV}>
             <Download size={14} /> CSV
           </button>
@@ -106,16 +108,24 @@ const SpecList: React.FC = () => {
                 <span className="page-url">{spec.pageUrl}</span>
               </div>
               <div className="item-actions">
-                <button onClick={() => handleEdit(spec)} title="수정">
-                  <Settings size={14} />
-                </button>
-                <button 
-                  onClick={() => handleDelete(spec.id)}
-                  title="삭제"
-                  className="delete-btn"
-                >
-                  <X size={14} />
-                </button>
+                {config.mode === 'spec' ? (
+                  <>
+                    <button onClick={() => handleEdit(spec)} title="수정">
+                      <Settings size={14} />
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(spec.id)}
+                      title="삭제"
+                      className="delete-btn"
+                    >
+                      <X size={14} />
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => handleEdit(spec)} title="상세보기">
+                    <Eye size={14} />
+                  </button>
+                )}
               </div>
             </div>
           ))
