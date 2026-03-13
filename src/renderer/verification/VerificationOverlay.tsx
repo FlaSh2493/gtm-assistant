@@ -7,7 +7,7 @@ import { useGTMAssistant } from '../GTMAssistant';
 import './verification.css';
 
 const VerificationOverlay: React.FC = () => {
-  const { config, hoveredElement, webviewRef } = useGTMAssistant();
+  const { config, hoveredElement, webviewRef, isWebviewReady } = useGTMAssistant();
   const [results, setResults] = useState<VerificationResult[]>([]);
   const [hoveredSelector, setHoveredSelector] = useState<string | null>(null);
   const [elementRects, setElementRects] = useState<Record<string, any>>({});
@@ -22,15 +22,19 @@ const VerificationOverlay: React.FC = () => {
   }, [config.mode]);
 
   useEffect(() => {
-    if (config.mode !== 'verify' || !webviewRef.current) return;
+    if (config.mode !== 'verify' || !webviewRef.current || !isWebviewReady) return;
 
     const requestRects = () => {
       const selectors = results
         .map(r => r.selector)
         .filter(s => s && s !== 'document');
       
-      if (selectors.length > 0) {
-        webviewRef.current?.send('get-rects', selectors);
+      if (selectors.length > 0 && webviewRef.current && isWebviewReady) {
+        try {
+          webviewRef.current.send('get-rects', selectors);
+        } catch (e) {
+          console.warn('[VerificationOverlay] Failed to send get-rects:', e);
+        }
       }
     };
 
@@ -50,7 +54,7 @@ const VerificationOverlay: React.FC = () => {
         clearInterval(interval);
       };
     }
-  }, [config.mode, results, webviewRef]);
+  }, [config.mode, results, webviewRef, isWebviewReady]);
 
   if (config.mode !== 'verify') return null;
 
