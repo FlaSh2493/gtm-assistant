@@ -56,8 +56,8 @@ const Drawer: React.FC = () => {
         position: 'absolute', // Relative to webview-container
         bottom: 0,
         right: 0,
-        width: isOpen ? 400 : 80,
-        height: isOpen ? '100%' : 80,
+        width: 400,
+        height: '100%',
         pointerEvents: 'none',
         zIndex: 9999,
         display: 'flex',
@@ -150,26 +150,7 @@ const Drawer: React.FC = () => {
               </div>
 
               <div className="drawer-controls">
-                {config.mode === 'spec' && (
-                  <div className="control-item">
-                    <label>선택 호버 활성화</label>
-                    <button 
-                      className={`toggle-switch ${config.showHover ? 'on' : 'off'}`}
-                      onClick={() => updateConfig({ showHover: !config.showHover })}
-                    >
-                      <div className="toggle-handle"></div>
-                    </button>
-                  </div>
-                )}
-                <div className="control-item">
-                  <label>명세 외곽선 항상 표시</label>
-                  <button 
-                    className={`toggle-switch ${showAllBadges ? 'on' : 'off'}`}
-                    onClick={() => setShowAllBadges(!showAllBadges)}
-                  >
-                    <div className="toggle-handle"></div>
-                  </button>
-                </div>
+                {/* Toggles removed per user request */}
               </div>
             </div>
 
