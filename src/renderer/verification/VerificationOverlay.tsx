@@ -176,24 +176,35 @@ const VerificationOverlay: React.FC = () => {
                     }));
                   }}
                   style={{
-                    borderRadius: '6px',
+                    borderRadius: '50%',
+                    padding: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     background: worstResultStyle.gradient,
                     boxShadow: `0 4px 12px ${borderColor}40`,
-                    border: '1px solid rgba(255, 255, 255, 0.3)'
+                    border: '1px solid rgba(255, 255, 255, 0.4)',
+                    width: '32px',
+                    height: '32px',
+                    boxSizing: 'border-box'
                   }}
                 >
-                  {getStatusIcon(worstResult.status)}
-                  <div className="v-tooltip-label">{worstResult.eventName}</div>
+                  {getStatusIcon(worstResult.status, 16)}
                   {hasMultiple && (
                     <span style={{ 
-                      background: 'rgba(255, 255, 255, 0.25)', 
+                      position: 'absolute',
+                      top: '-4px',
+                      right: '-4px',
+                      background: '#111827', 
                       color: 'white', 
-                      padding: '1px 5px', 
+                      padding: '2px 4px', 
                       borderRadius: '10px',
                       fontSize: '9px',
-                      fontWeight: 900
+                      fontWeight: 900,
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                     }}>
-                      +{groupResults.length - 1}
+                      {groupResults.length}
                     </span>
                   )}
                 </div>
@@ -205,10 +216,17 @@ const VerificationOverlay: React.FC = () => {
                       key={i}
                       className="v-error-tooltip expanded"
                       style={{ 
-                        borderRadius: '6px',
+                        borderRadius: '50%',
+                        padding: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         background: style.gradient,
                         boxShadow: `0 4px 12px ${style.color}40`,
-                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        border: '1px solid rgba(255, 255, 255, 0.4)',
+                        width: '32px',
+                        height: '32px',
+                        boxSizing: 'border-box'
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -216,9 +234,9 @@ const VerificationOverlay: React.FC = () => {
                           detail: { eventName: res.eventName, status: res.status } 
                         }));
                       }}
+                      title={res.eventName}
                     >
-                      {getStatusIcon(res.status)}
-                      <div className="v-tooltip-label">{res.eventName}</div>
+                      {getStatusIcon(res.status, 16)}
                     </div>
                   );
                 })
