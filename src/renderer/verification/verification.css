@@ -33,9 +33,9 @@
 .v-section-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #374151; padding: 0 4px; }
 .v-count { font-weight: 400; color: #9ca3af; font-size: 11px; }
 
-.v-item { border-radius: 8px; border: 1px solid #e5e7eb; background: white; padding: 12px; transition: all 0.2s; }
-.v-item:hover { background: #f9fafb; border-color: #d1d5db; }
-.v-item.expanded { border-color: #3b82f6; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.v-item { border-radius: 10px; border: 1px solid #e5e7eb; background: white; padding: 12px; transition: all 0.2s; }
+.v-item:hover { border-color: #2563eb; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.05); }
+.v-item.expanded { border-color: #3b82f6; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1); }
 .v-item.pass { border-left: 4px solid #10b981; }
 .v-item.fail { border-left: 4px solid #ef4444; }
 .v-item.missing { border-left: 4px solid #f59e0b; }

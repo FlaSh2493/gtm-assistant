@@ -97,14 +97,23 @@ const VerificationDrawer: React.FC = () => {
               onClick={() => toggleExpand(itemKey)}
               style={{ cursor: 'pointer' }}
             >
-              <div className="v-item-header">
-                <span className="v-status-icon">
-                  {getStatusIcon(res.status)}
-                </span>
-                <span className="v-event-name">{res.eventName}</span>
-                {res.planId && <span className="v-event-id">{res.planId}</span>}
+              <div className="item-info" style={{ width: '100%' }}>
+                <div className="event-header-row">
+                  <span className="v-status-icon" style={{ display: 'flex', alignItems: 'center' }}>
+                    {getStatusIcon(res.status, 14)}
+                  </span>
+                  {res.tagName ? (
+                    <span className="event-type-badge element" title={res.tagName}>{res.tagName}</span>
+                  ) : (
+                    <span className="event-type-badge custom">Event</span>
+                  )}
+                  {res.planId && <span className="event-id">{res.planId}</span>}
+                </div>
+                <div className="event-name">{res.eventName}</div>
+                {res.selector && res.selector !== 'document' && (
+                  <span className="page-url" title={res.selector}>{res.selector}</span>
+                )}
               </div>
-              {res.tagName && <div className="v-tag-name">Tag: {res.tagName}</div>}
               
               {isExpanded && (
                 <div className="v-details" onClick={(e) => e.stopPropagation()}>
