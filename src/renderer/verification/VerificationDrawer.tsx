@@ -1,21 +1,66 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle, AlertCircle, HelpCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle, HelpCircle, FileUp, Database, FileSpreadsheet, RotateCcw } from 'lucide-react';
 import { parseGTMGA4Tags, parseGTMTriggers } from './GTMParser';
-import { EXAMPLE_CSV_PLAN, EXAMPLE_GTM_JSON } from './ExampleData';
+import { EXAMPLE_GTM_JSON } from './ExampleData';
 import { verifySpecs, VerificationResult } from './VerificationService';
+import { useGTMAssistant } from '../GTMAssistant';
+import { parseCSVToSpecs, parseJSONToSpecs } from '../utils/SpecParser';
 
 const VerificationDrawer: React.FC = () => {
+  const { specs, externalSpecs, setExternalSpecs, gtmJson, setGtmJson, currentUrl } = useGTMAssistant();
   const [results, setResults] = useState<VerificationResult[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<VerificationResult['status'] | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const specInputRef = useRef<HTMLInputElement>(null);
+  const gtmInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const tags = parseGTMGA4Tags(EXAMPLE_GTM_JSON);
-    const triggerMap = parseGTMTriggers(EXAMPLE_GTM_JSON);
-    const verificationResults = verifySpecs(EXAMPLE_CSV_PLAN, tags, triggerMap);
+    const currentSpecs = externalSpecs || specs;
+    const currentGtm = gtmJson || EXAMPLE_GTM_JSON;
+
+    const tags = parseGTMGA4Tags(currentGtm);
+    const triggerMap = parseGTMTriggers(currentGtm);
+    const verificationResults = verifySpecs(currentSpecs, tags, triggerMap, currentUrl);
     setResults(verificationResults);
-  }, []);
+  }, [specs, externalSpecs, gtmJson, currentUrl]);
+
+  const handleSpecUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (file.name.endsWith('.json')) {
+        setExternalSpecs(parseJSONToSpecs(text));
+      } else {
+        setExternalSpecs(parseCSVToSpecs(text));
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleGTMUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        setGtmJson(json);
+      } catch (err) {
+        alert('올바른 GTM JSON 형식이 아닙니다.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const resetUploads = () => {
+    setExternalSpecs(null);
+    setGtmJson(null);
+  };
 
   useEffect(() => {
     const handleFocus = (e: any) => {
@@ -62,10 +107,9 @@ const VerificationDrawer: React.FC = () => {
 
   const getStatusIcon = (status: VerificationResult['status'], size = 14) => {
     switch (status) {
-      case 'pass': return <CheckCircle size={size} color="#10b981" />;
-      case 'fail': return <AlertCircle size={size} color="#ef4444" />;
-      case 'missing': return <HelpCircle size={size} color="#f59e0b" />;
-      case 'extra': return <AlertCircle size={size} color="#3b82f6" />;
+      case 'match': return <CheckCircle size={size} color="#10b981" />;
+      case 'issue': return <AlertCircle size={size} color="#ef4444" />;
+      case 'unspec': return <HelpCircle size={size} color="#64748b" />;
       default: return null;
     }
   };
@@ -141,17 +185,54 @@ const VerificationDrawer: React.FC = () => {
   };
 
   const filterConfigs: { status: VerificationResult['status']; label: string }[] = [
-    { status: 'pass', label: '일치' },
-    { status: 'fail', label: '불일치' },
-    { status: 'missing', label: '구현 필요' },
-    { status: 'extra', label: '명세 확인' },
+    { status: 'match', label: '일치' },
+    { status: 'issue', label: '조치 필요' },
+    { status: 'unspec', label: '명세 외' },
   ];
 
   return (
     <div className="verification-drawer">
       <div className="v-header">
         <h3>검수 결과 리스트</h3>
-        <p className="v-subtitle">명세서와 GTM 컨테이너 구현을 비교합니다.</p>
+        <p className="v-subtitle">설치 명세서와 GTM 구현을 비교합니다.</p>
+        
+        <div className="v-upload-zone">
+          <div className="upload-group">
+            <div className={`upload-item ${externalSpecs ? 'success' : ''}`} onClick={() => specInputRef.current?.click()}>
+              <FileSpreadsheet size={16} />
+              <div className="upload-info">
+                <span className="label">명세서 (CSV/JSON)</span>
+                <span className="file-name">{externalSpecs ? `업로드됨 (${externalSpecs.length}개)` : '파일 선택'}</span>
+              </div>
+              <input 
+                type="file" 
+                ref={specInputRef} 
+                accept=".csv,.json" 
+                onChange={handleSpecUpload} 
+                style={{ display: 'none' }} 
+              />
+            </div>
+            <div className={`upload-item ${gtmJson ? 'success' : ''}`} onClick={() => gtmInputRef.current?.click()}>
+              <Database size={16} />
+              <div className="upload-info">
+                <span className="label">GTM 컨테이너 (JSON)</span>
+                <span className="file-name">{gtmJson ? '업로드됨' : '파일 선택'}</span>
+              </div>
+              <input 
+                type="file" 
+                ref={gtmInputRef} 
+                accept=".json" 
+                onChange={handleGTMUpload} 
+                style={{ display: 'none' }} 
+              />
+            </div>
+            {(externalSpecs || gtmJson) && (
+              <button className="v-reset-btn" onClick={resetUploads} title="초기화">
+                <RotateCcw size={14} />
+              </button>
+            )}
+          </div>
+        </div>
         
         <div className="v-filter-bar">
           {filterConfigs.map(cfg => {
@@ -174,10 +255,9 @@ const VerificationDrawer: React.FC = () => {
       </div>
 
       <div className="v-results-list" ref={listRef}>
-        {renderSection('기획대로 구현됨 (성공)', 'pass', <CheckCircle size={16} color="#10b981" />)}
-        {renderSection('상세 요건 불일치 (실패)', 'fail', <AlertCircle size={16} color="#ef4444" />)}
-        {renderSection('GTM 구현 필요 (미구현)', 'missing', <HelpCircle size={16} color="#f59e0b" />)}
-        {renderSection('명세 확인 필요 (미정의)', 'extra', <AlertCircle size={16} color="#3b82f6" />)}
+        {renderSection('기획대로 구현됨 (일치)', 'match', <CheckCircle size={16} color="#10b981" />)}
+        {renderSection('수정이 필요한 태그 (조치 필요)', 'issue', <AlertCircle size={16} color="#ef4444" />)}
+        {renderSection('GTM에는 있으나 명세에는 없음 (명세 외)', 'unspec', <HelpCircle size={16} color="#64748b" />)}
         
         {filter && results.filter(r => r.status === filter).length === 0 && (
            <div className="v-empty-filter">

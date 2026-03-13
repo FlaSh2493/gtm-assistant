@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, AlertCircle, XCircle, HelpCircle } from 'lucide-react';
 import { parseGTMGA4Tags, parseGTMTriggers } from './GTMParser';
-import { EXAMPLE_CSV_PLAN, EXAMPLE_GTM_JSON } from './ExampleData';
 import { verifySpecs, VerificationResult } from './VerificationService';
 import { useGTMAssistant } from '../GTMAssistant';
+import { EXAMPLE_GTM_JSON } from './ExampleData';
 import './verification.css';
 
 const VerificationOverlay: React.FC = () => {
-  const { config, hoveredElement, webviewRef, isWebviewReady } = useGTMAssistant();
+  const { config, hoveredElement, webviewRef, isWebviewReady, specs, externalSpecs, gtmJson, currentUrl } = useGTMAssistant();
   const [results, setResults] = useState<VerificationResult[]>([]);
   const [hoveredSelector, setHoveredSelector] = useState<string | null>(null);
   const [elementRects, setElementRects] = useState<Record<string, any>>({});
@@ -16,11 +16,14 @@ const VerificationOverlay: React.FC = () => {
   useEffect(() => {
     if (config.mode !== 'verify') return;
 
-    const tags = parseGTMGA4Tags(EXAMPLE_GTM_JSON);
-    const triggerMap = parseGTMTriggers(EXAMPLE_GTM_JSON);
-    const verificationResults = verifySpecs(EXAMPLE_CSV_PLAN, tags, triggerMap);
+    const currentSpecs = externalSpecs || specs;
+    const currentGtm = gtmJson || EXAMPLE_GTM_JSON;
+
+    const tags = parseGTMGA4Tags(currentGtm);
+    const triggerMap = parseGTMTriggers(currentGtm);
+    const verificationResults = verifySpecs(currentSpecs, tags, triggerMap, currentUrl);
     setResults(verificationResults);
-  }, [config.mode]);
+  }, [config.mode, specs, externalSpecs, gtmJson, currentUrl]);
 
   useEffect(() => {
     if (config.mode !== 'verify' || !webviewRef.current || !isWebviewReady) return;
@@ -68,30 +71,27 @@ const VerificationOverlay: React.FC = () => {
 
   const getStatusPriority = (status: VerificationResult['status']) => {
     switch (status) {
-      case 'fail': return 4;
-      case 'missing': return 3;
-      case 'extra': return 2;
-      case 'pass': return 1;
+      case 'issue': return 3;
+      case 'unspec': return 2;
+      case 'match': return 1;
       default: return 0;
     }
   };
 
   const getStatusIcon = (status: VerificationResult['status'], size = 12) => {
     switch (status) {
-      case 'pass': return <CheckCircle size={size} color="white" />;
-      case 'fail': return <XCircle size={size} color="white" />;
-      case 'missing': return <AlertCircle size={size} color="white" />; // 확인필요 (exclamation)
-      case 'extra': return <HelpCircle size={size} color="white" />; // 명세확인필요 (question)
+      case 'match': return <CheckCircle size={size} color="white" />;
+      case 'issue': return <AlertCircle size={size} color="white" />;
+      case 'unspec': return <HelpCircle size={size} color="white" />;
       default: return null;
     }
   };
 
   const getStatusStyle = (status: VerificationResult['status']) => {
     switch (status) {
-      case 'pass': return { color: '#10b981', gradient: 'linear-gradient(135deg, #34d399, #059669)', bg: 'rgba(16, 185, 129, 0.05)', hoverBg: 'rgba(16, 185, 129, 0.25)' };
-      case 'fail': return { color: '#ef4444', gradient: 'linear-gradient(135deg, #f87171, #dc2626)', bg: 'rgba(239, 68, 68, 0.05)', hoverBg: 'rgba(239, 68, 68, 0.25)' };
-      case 'missing': return { color: '#f59e0b', gradient: 'linear-gradient(135deg, #fbbf24, #d97706)', bg: 'rgba(245, 158, 11, 0.05)', hoverBg: 'rgba(245, 158, 11, 0.25)' };
-      case 'extra': return { color: '#3b82f6', gradient: 'linear-gradient(135deg, #60a5fa, #2563eb)', bg: 'rgba(59, 130, 246, 0.05)', hoverBg: 'rgba(59, 130, 246, 0.25)' };
+      case 'match': return { color: '#10b981', gradient: 'linear-gradient(135deg, #34d399, #059669)', bg: 'rgba(16, 185, 129, 0.05)', hoverBg: 'rgba(16, 185, 129, 0.25)' };
+      case 'issue': return { color: '#ef4444', gradient: 'linear-gradient(135deg, #f87171, #dc2626)', bg: 'rgba(239, 68, 68, 0.05)', hoverBg: 'rgba(239, 68, 68, 0.25)' };
+      case 'unspec': return { color: '#64748b', gradient: 'linear-gradient(135deg, #94a3b8, #475569)', bg: 'rgba(100, 116, 139, 0.05)', hoverBg: 'rgba(100, 116, 139, 0.25)' };
       default: return { color: '#9ca3af', gradient: 'linear-gradient(135deg, #9ca3af, #6b7280)', bg: 'transparent', hoverBg: 'rgba(156, 163, 175, 0.25)' };
     }
   };
@@ -144,7 +144,7 @@ const VerificationOverlay: React.FC = () => {
               borderRadius: '8px',
               pointerEvents: 'auto',
               zIndex: 90,
-              boxShadow: worstResult.status !== 'pass' ? `0 0 10px ${borderColor}80` : `0 0 5px ${borderColor}40`,
+              boxShadow: worstResult.status !== 'match' ? `0 0 10px ${borderColor}80` : `0 0 5px ${borderColor}40`,
               transition: 'border-color 0.2s, background-color 0.2s',
               cursor: 'pointer',
               boxSizing: 'border-box'

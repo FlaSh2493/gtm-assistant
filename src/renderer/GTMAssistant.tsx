@@ -2,8 +2,8 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { AppConfig, EventSpec } from '../types';
 import { storage } from '../utils/storage';
 import HoverOutline from './overlay/HoverOutline';
-import Drawer from './drawer/Drawer';
-import Popover from './overlay/Popover';
+import Drawer from './drawer/drawer';
+import Popover from './overlay/popover';
 import SpecPopover from './overlay/SpecPopover';
 import SpecOutline from './overlay/SpecOutline';
 import PageviewBadge from './overlay/PageviewBadge';
@@ -35,6 +35,11 @@ interface GTMAssistantContextType {
   updateConfig: (updates: Partial<AppConfig>) => Promise<void>;
   webviewRef: React.RefObject<any>;
   isWebviewReady: boolean;
+  externalSpecs: EventSpec[] | null;
+  setExternalSpecs: (specs: EventSpec[] | null) => void;
+  gtmJson: any | null;
+  setGtmJson: (json: any | null) => void;
+  currentUrl: string;
 }
 
 const GTMAssistantContext = createContext<GTMAssistantContextType | undefined>(undefined);
@@ -59,6 +64,9 @@ const GTMAssistant: React.FC<Props> = ({ webviewRef, config, setConfig }) => {
   const [showAllBadges, setShowAllBadges] = useState(true);
   const [editingSpec, setEditingSpec] = useState<EventSpec | null>(null);
   const [isWebviewReady, setIsWebviewReady] = useState(false);
+  const [externalSpecs, setExternalSpecs] = useState<EventSpec[] | null>(null);
+  const [gtmJson, setGtmJson] = useState<any | null>(null);
+  const [currentUrl, setCurrentUrl] = useState('');
 
   // Sync ref with prop for use in listeners
   useEffect(() => {
@@ -70,17 +78,18 @@ const GTMAssistant: React.FC<Props> = ({ webviewRef, config, setConfig }) => {
     
     // Fallback URL if we are forcing a load (e.g. during DOM ready or navigate)
     // or if the webview is not quite ready to return a URL yet.
-    let currentUrl = '';
+    let url = '';
     try {
-      currentUrl = forceUrl || webviewRef.current.getURL() || '';
+      url = forceUrl || webviewRef.current.getURL() || '';
     } catch (e) {
       console.warn('[GTMAssistant] Failed to get URL:', e);
     }
     
-    if (!currentUrl || currentUrl === 'about:blank') return;
+    if (!url || url === 'about:blank') return;
+    setCurrentUrl(url);
 
     try {
-      const hostname = new URL(currentUrl).hostname;
+      const hostname = new URL(url).hostname;
       const s = await storage.getSpecs(hostname);
       setSpecs(s);
     } catch (e) {
@@ -203,7 +212,12 @@ const GTMAssistant: React.FC<Props> = ({ webviewRef, config, setConfig }) => {
       setEditingSpec,
       updateConfig,
       webviewRef,
-      isWebviewReady
+      isWebviewReady,
+      externalSpecs,
+      setExternalSpecs,
+      gtmJson,
+      setGtmJson,
+      currentUrl
     }}>
       <div className="gtm-assistant-inner" id="gtm-assistant-inner">
         {config.enabled && (
