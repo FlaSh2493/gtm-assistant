@@ -1,6 +1,7 @@
 import React from 'react';
 import { useGTMAssistant } from '../GTMAssistant';
 import { FileText } from 'lucide-react';
+import './overlay.css';
 
 const PageviewBadge: React.FC = () => {
   const { specs, webviewRef } = useGTMAssistant();
@@ -23,32 +24,6 @@ const PageviewBadge: React.FC = () => {
         <FileText size={14} />
         <span className="count">{pageSpecs.length}</span>
       </div>
-      
-      <style>{`
-        .pageview-badge-container {
-          position: fixed;
-          top: 12px;
-          left: 12px;
-          z-index: 2147483646;
-          pointer-events: none;
-        }
-        .pageview-badge {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          background: #92400e;
-          color: white;
-          padding: 4px 10px;
-          border-radius: 20px;
-          font-size: 11px;
-          font-weight: 700;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-          border: 2px solid white;
-        }
-        .count {
-          line-height: 1;
-        }
-      `}</style>
     </div>
   );
 };

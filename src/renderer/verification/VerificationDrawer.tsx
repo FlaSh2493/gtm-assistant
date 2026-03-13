@@ -176,63 +176,6 @@ const VerificationDrawer: React.FC = () => {
            </div>
         )}
       </div>
-
-      <style>{`
-        .verification-drawer { display: flex; flex-direction: column; height: 100%; background: #fdfdfd; }
-        .v-header { padding: 16px; border-bottom: 1px solid #f3f4f6; background: white; }
-        .v-header h3 { margin: 0; font-size: 15px; font-weight: 700; color: #111827; }
-        .v-subtitle { margin: 4px 0 12px; font-size: 12px; color: #6b7280; }
-        
-        .v-filter-bar { display: flex; flex-wrap: wrap; gap: 6px; }
-        .v-filter-chip {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          padding: 4px 8px;
-          border-radius: 6px;
-          border: 1px solid #e5e7eb;
-          background: #f9fafb;
-          cursor: pointer;
-          transition: all 0.2s;
-          font-size: 11px;
-          color: #4b5563;
-          font-weight: 600;
-        }
-        .v-filter-chip:hover { border-color: #d1d5db; background: #f3f4f6; }
-        .v-filter-chip.active { background: white; border-color: #3b82f6; color: #2563eb; ring: 2px solid #3b82f6; }
-        .v-filter-chip.pass.active { border-color: #10b981; color: #059669; }
-        .v-filter-chip.fail.active { border-color: #ef4444; color: #dc2626; }
-        .v-filter-chip.missing.active { border-color: #f59e0b; color: #d97706; }
-        .v-filter-chip.extra.active { border-color: #3b82f6; color: #2563eb; }
-        
-        .chip-count { font-size: 10px; opacity: 0.6; }
-
-        .v-results-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 20px; }
-        .v-section { display: flex; flex-direction: column; gap: 8px; }
-        .v-section-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #374151; padding: 0 4px; }
-        .v-count { font-weight: 400; color: #9ca3af; font-size: 11px; }
-        
-        .v-item { border-radius: 8px; border: 1px solid #e5e7eb; background: white; padding: 12px; transition: all 0.2s; }
-        .v-item:hover { background: #f9fafb; border-color: #d1d5db; }
-        .v-item.expanded { border-color: #3b82f6; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .v-item.pass { border-left: 4px solid #10b981; }
-        .v-item.fail { border-left: 4px solid #ef4444; }
-        .v-item.missing { border-left: 4px solid #f59e0b; }
-        .v-item.extra { border-left: 4px solid #3b82f6; }
-        
-        .v-item-header { display: flex; align-items: center; gap: 6px; }
-        .v-event-name { font-weight: 600; font-size: 13px; color: #374151; flex: 1; overflow: hidden; text-overflow: ellipsis; }
-        .v-event-id { font-weight: 700; color: #3b82f6; font-size: 10px; background: #eff6ff; padding: 1px 4px; border-radius: 3px; }
-        .v-tag-name { font-size: 10px; color: #6b7280; margin-top: 2px; }
-        
-        .v-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #f3f4f6; }
-        .v-mismatches { display: flex; flex-direction: column; gap: 4px; }
-        .v-mismatch-note { font-size: 11px; color: #ef4444; font-weight: 500; line-height: 1.4; }
-        .v-meta { margin-top: 6px; font-size: 10px; color: #6b7280; }
-        .v-meta code { background: #f3f4f6; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
-        
-        .v-empty-filter { padding: 40px 20px; text-align: center; color: #9ca3af; font-size: 13px; }
-      `}</style>
     </div>
   );
 };

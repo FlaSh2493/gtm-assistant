@@ -1,0 +1,231 @@
+/* Drawer.tsx Styles */
+.drawer-container {
+  font-family: Inter, system-ui, sans-serif;
+}
+.drawer-header {
+  background: #f9fafb;
+  border-bottom: 1px solid #f3f4f6;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.drawer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toolbar-left .logo { font-size: 20px; }
+.toolbar-left .title { font-weight: 700; font-size: 16px; color: #111827; }
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.close-btn:hover { background: #f3f4f6; color: #4b5563; }
+
+.mode-tabs {
+  display: flex;
+  background: #f3f4f6;
+  padding: 3px;
+  border-radius: 10px;
+}
+.mode-tabs button {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.2s;
+}
+.mode-tabs button.active {
+  background: white;
+  color: #2563eb;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.page-info-panel {
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.info-row {
+  display: flex;
+  gap: 8px;
+}
+.info-label { font-weight: 600; color: #9ca3af; width: 32px; flex-shrink: 0; }
+.info-value { color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.drawer-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+.control-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.control-item label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+}
+.toggle-switch {
+  width: 36px;
+  height: 20px;
+  background: #d1d5db;
+  border-radius: 10px;
+  border: none;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+}
+.toggle-switch.on { background: #2563eb; }
+.toggle-handle {
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.toggle-switch.on .toggle-handle { left: 18px; }
+
+.drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  background: white;
+}
+
+/* SpecList.tsx Styles */
+.spec-list {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.list-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.stats {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+.btn-group {
+  display: flex;
+  gap: 6px;
+}
+.add-page-btn, .export-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+.add-page-btn {
+  background: #f3f4f6;
+  color: #374151;
+}
+.add-page-btn:hover { background: #e5e7eb; }
+
+.export-btn.secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+.export-btn.gtm {
+  background: #2563eb;
+  color: white;
+}
+.export-btn:hover { opacity: 0.9; }
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.empty-state {
+  padding: 40px;
+  text-align: center;
+  color: #9ca3af;
+}
+.spec-item {
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  transition: all 0.2s;
+}
+.spec-item:hover {
+  border-color: #2563eb;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.05);
+}
+
+.item-info {
+   display: flex;
+   flex-direction: column;
+   gap: 2px;
+}
+.event-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.event-type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.event-type-badge.element { background: #ebf5ff; color: #2563eb; }
+.event-type-badge.page { background: #fef2f2; color: #dc2626; }
+.event-type-badge.custom { background: #f0fdf4; color: #16a34a; }
+.event-id { font-weight: 600; color: #3b82f6; font-size: 11px; }
+.event-name { font-weight: 600; font-size: 13px; }
+.page-url { font-size: 11px; color: #9ca3af; overflow: hidden; text-overflow: ellipsis; max-width: 250px; white-space: nowrap; }
+
+.item-actions button {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.item-actions button:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}

@@ -4,6 +4,7 @@ import { parseGTMGA4Tags, parseGTMTriggers } from './GTMParser';
 import { EXAMPLE_CSV_PLAN, EXAMPLE_GTM_JSON } from './ExampleData';
 import { verifySpecs, VerificationResult } from './VerificationService';
 import { useGTMAssistant } from '../GTMAssistant';
+import './verification.css';
 
 const VerificationOverlay: React.FC = () => {
   const { config, hoveredElement, webviewRef } = useGTMAssistant();
@@ -199,23 +200,6 @@ const VerificationOverlay: React.FC = () => {
           </div>
         );
       })}
-      <style>{`
-        .v-overlay-rect.fail { background: rgba(239, 68, 68, 0.05); }
-        .v-overlay-rect.pass { background: rgba(16, 185, 129, 0.05); }
-        
-        .v-error-tooltip {
-          background: #ef4444;
-          color: white;
-          padding: 6px 10px;
-          border-radius: 4px;
-          font-size: 11px;
-          font-weight: 600;
-          white-space: nowrap;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          pointer-events: auto;
-        }
-        .v-tooltip-label { font-size: 11px; font-weight: 700; white-space: nowrap; }
-      `}</style>
     </>
   );
 };

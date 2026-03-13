@@ -2,6 +2,7 @@ import React from 'react';
 import { useGTMAssistant } from '../GTMAssistant';
 import { Plus, Download, FileJson, Settings, X } from 'lucide-react';
 import { storage } from '../../utils/storage';
+import './drawer.css';
 
 import { useCSVExport } from '../hooks/useCSVExport';
 import { useGtmExport } from '../hooks/useGtmExport';
@@ -120,118 +121,6 @@ const SpecList: React.FC = () => {
           ))
         )}
       </div>
-
-      <style>{`
-        .spec-list {
-          padding: 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .list-actions {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .stats {
-          font-size: 12px;
-          color: #6b7280;
-          font-weight: 500;
-        }
-        .btn-group {
-          display: flex;
-          gap: 6px;
-        }
-        .add-page-btn, .export-btn {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          padding: 6px 10px;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-          border: none;
-          transition: all 0.2s;
-        }
-        .add-page-btn {
-          background: #f3f4f6;
-          color: #374151;
-        }
-        .add-page-btn:hover { background: #e5e7eb; }
-        
-        .export-btn.secondary {
-          background: #f3f4f6;
-          color: #374151;
-        }
-        .export-btn.gtm {
-          background: #2563eb;
-          color: white;
-        }
-        .export-btn:hover { opacity: 0.9; }
-
-        .items {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .empty-state {
-          padding: 40px;
-          text-align: center;
-          color: #9ca3af;
-        }
-        .spec-item {
-          padding: 12px;
-          border: 1px solid #e5e7eb;
-          border-radius: 10px;
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          transition: all 0.2s;
-        }
-        .spec-item:hover {
-          border-color: #2563eb;
-          box-shadow: 0 2px 8px rgba(37, 99, 235, 0.05);
-        }
-
-        .item-info {
-           display: flex;
-           flex-direction: column;
-           gap: 2px;
-        }
-        .event-header-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 4px;
-        }
-        .event-type-badge {
-          font-size: 10px;
-          font-weight: 700;
-          padding: 2px 6px;
-          border-radius: 4px;
-          text-transform: uppercase;
-        }
-        .event-type-badge.element { background: #ebf5ff; color: #2563eb; }
-        .event-type-badge.page { background: #fef2f2; color: #dc2626; }
-        .event-type-badge.custom { background: #f0fdf4; color: #16a34a; }
-        .event-id { font-weight: 600; color: #3b82f6; font-size: 11px; }
-        .event-name { font-weight: 600; font-size: 13px; }
-        .page-url { font-size: 11px; color: #9ca3af; overflow: hidden; text-overflow: ellipsis; max-width: 250px; white-space: nowrap; }
-        
-        .item-actions button {
-          background: none;
-          border: none;
-          color: #9ca3af;
-          cursor: pointer;
-          padding: 4px;
-          border-radius: 4px;
-        }
-        .item-actions button:hover {
-          background: #fee2e2;
-          color: #ef4444;
-        }
-      `}</style>
     </div>
   );
 };
