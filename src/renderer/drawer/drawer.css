@@ -212,7 +212,7 @@
 }
 .event-type-badge.element { background: #ebf5ff; color: #2563eb; }
 .event-type-badge.page { background: #fef2f2; color: #dc2626; }
-.event-type-badge.custom { background: #f0fdf4; color: #16a34a; }
+.event-type-badge.custom { background: #fff7ed; color: #ea580c; }
 .event-id { font-weight: 600; color: #3b82f6; font-size: 11px; }
 .event-name { font-weight: 600; font-size: 13px; }
 .page-url { font-size: 11px; color: #9ca3af; overflow: hidden; text-overflow: ellipsis; max-width: 250px; white-space: nowrap; }
