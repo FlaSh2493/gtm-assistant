@@ -152,10 +152,10 @@ body {
 }
 .webview-container {
   flex: 1;
+  border: none;
   position: relative;
   background: white;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid #e5e7eb;
 }
