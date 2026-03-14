@@ -71,13 +71,6 @@
 .info-label { font-weight: 600; color: #9ca3af; width: 32px; flex-shrink: 0; }
 .info-value { color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.drawer-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid #f3f4f6;
-}
 .control-item {
   display: flex;
   justify-content: space-between;

@@ -45,23 +45,7 @@ const SpecList: React.FC = () => {
     selector: 'document'
   };
 
-  const handleAddPageSpec = () => {
-    setSelectedElement(dummyElement);
-    setEditingSpec({
-      id: '',
-      eventType: 'custom',
-      selector: 'document',
-      pageUrl: currentUrl,
-      pageDescription: '',
-      category: '',
-      eventId: '',
-      eventName: 'page_view',
-      triggerDescription: 'Page View',
-      parameters: [{ key: '', value: '' }],
-      visible: true,
-      createdAt: '',
-    } as any);
-  };
+
 
   const handleEdit = (spec: any) => {
     // We don't have direct access to the element, but we can send the selector to the popover
@@ -79,16 +63,12 @@ const SpecList: React.FC = () => {
       <div className="list-actions">
         <div className="stats">총 {specs.length}개 항목</div>
         <div className="btn-group">
-          {config.mode === 'spec' && (
-            <button className="add-page-btn" onClick={handleAddPageSpec}>
-              <Plus size={14} /> 페이지 추가
-            </button>
-          )}
+
           <button className="export-btn secondary" onClick={handleExportCSV}>
             <Download size={14} /> CSV
           </button>
           <button className="export-btn gtm" onClick={handleExportGTM}>
-            <FileJson size={14} /> GTM JSON
+           <Download size={14} /> GTM JSON
           </button>
         </div>
       </div>

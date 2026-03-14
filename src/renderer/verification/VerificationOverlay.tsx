@@ -8,10 +8,11 @@ import { EXAMPLE_GTM_JSON } from './ExampleData';
 import './verification.css';
 
 const VerificationOverlay: React.FC = () => {
-  const { config, hoveredElement, webviewRef, isWebviewReady, specs, externalSpecs, gtmJson, currentUrl } = useGTMAssistant();
+  const { config, hoveredElement, webviewRef, isWebviewReady, specs, externalSpecs, gtmJson, currentUrl, setIsDrawerOpen } = useGTMAssistant();
   const [results, setResults] = useState<VerificationResult[]>([]);
   const [hoveredSelector, setHoveredSelector] = useState<string | null>(null);
   const [elementRects, setElementRects] = useState<Record<string, any>>({});
+
 
   useEffect(() => {
     if (config.mode !== 'verify') return;
@@ -49,12 +50,20 @@ const VerificationOverlay: React.FC = () => {
 
     const webview = webviewRef.current;
     if (webview) {
-      webview.addEventListener('ipc-message', handleRectsUpdate);
+      const handleIpcMessage = (event: any) => {
+        if (event.channel === 'rects-update') {
+          handleRectsUpdate(event);
+        } else if (event.channel === 'webview-scrolling') {
+          requestRects();
+        }
+      };
+
+      webview.addEventListener('ipc-message', handleIpcMessage);
       const interval = setInterval(requestRects, 1000);
       requestRects();
 
       return () => {
-        webview.removeEventListener('ipc-message', handleRectsUpdate);
+        webview.removeEventListener('ipc-message', handleIpcMessage);
         clearInterval(interval);
       };
     }
@@ -97,7 +106,7 @@ const VerificationOverlay: React.FC = () => {
   };
 
   return (
-    <>
+    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 90 }}>
       {Object.entries(groupedResults).map(([selector, groupResults]) => {
         const rect = elementRects[selector];
         if (!rect) return null;
@@ -115,6 +124,10 @@ const VerificationOverlay: React.FC = () => {
         const estimatedHeight = isHovered ? (groupResults.length * 30 + 10) : 40;
         const isTopSpaceTight = rect.top < estimatedHeight;
 
+        // Horizontal repositioning logic
+        const estimatedWidth = isHovered ? 120 : 50; 
+        const isRightSpaceTight = (rect.left + estimatedWidth) > window.innerWidth;
+
         return (
           <motion.div 
             key={selector}
@@ -128,6 +141,7 @@ const VerificationOverlay: React.FC = () => {
             transition={{ duration: 0.1 }}
             onClick={(e) => {
               e.stopPropagation();
+              setIsDrawerOpen(true);
               window.dispatchEvent(new CustomEvent('gtm-assistant-focus-result', { 
                 detail: { eventName: worstResult.eventName, status: worstResult.status } 
               }));
@@ -143,7 +157,7 @@ const VerificationOverlay: React.FC = () => {
               border: `2px solid ${isHovered ? borderColor : borderColor + '99'}`,
               borderRadius: '8px',
               pointerEvents: 'auto',
-              zIndex: 90,
+              zIndex: isHovered ? 92 : 90,
               boxShadow: worstResult.status !== 'match' ? `0 0 10px ${borderColor}80` : `0 0 5px ${borderColor}40`,
               transition: 'border-color 0.2s, background-color 0.2s',
               cursor: 'pointer',
@@ -151,21 +165,25 @@ const VerificationOverlay: React.FC = () => {
             }}
           >
             <div 
-              className={`v-label-container ${isHovered ? 'expanded' : ''}`}
+              className={`v-label-container ${isHovered ? 'expanded' : ''} ${isRightSpaceTight ? 'right-aligned' : ''}`}
               style={{
                 position: 'absolute',
                 top: isTopSpaceTight ? '100%' : 'auto',
                 bottom: !isTopSpaceTight ? '100%' : 'auto',
                 paddingTop: isTopSpaceTight ? '6px' : '0',
                 paddingBottom: !isTopSpaceTight ? '6px' : '0',
-                left: '-2px',
+                left: isRightSpaceTight ? 'auto' : '-2px',
+                right: isRightSpaceTight ? '-2px' : 'auto',
                 display: 'flex',
                 flexDirection: 'column',
+                alignItems: isRightSpaceTight ? 'flex-end' : 'flex-start',
                 justifyContent: isTopSpaceTight ? 'flex-start' : 'flex-end',
                 gap: '4px',
-                zIndex: 91,
+                zIndex: 93,
                 pointerEvents: 'auto',
               }}
+              onMouseEnter={() => setHoveredSelector(selector)}
+              onMouseLeave={() => setHoveredSelector(null)}
             >
               {!isHovered ? (
                 <div
@@ -173,6 +191,7 @@ const VerificationOverlay: React.FC = () => {
                   className="v-error-tooltip compact"
                   onClick={(e) => {
                     e.stopPropagation();
+                    setIsDrawerOpen(true);
                     window.dispatchEvent(new CustomEvent('gtm-assistant-focus-result', { 
                       detail: { eventName: worstResult.eventName, status: worstResult.status } 
                     }));
@@ -232,6 +251,7 @@ const VerificationOverlay: React.FC = () => {
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
+                        setIsDrawerOpen(true);
                         window.dispatchEvent(new CustomEvent('gtm-assistant-focus-result', { 
                           detail: { eventName: res.eventName, status: res.status } 
                         }));
@@ -247,7 +267,7 @@ const VerificationOverlay: React.FC = () => {
           </motion.div>
         );
       })}
-    </>
+    </div>
   );
 };
 

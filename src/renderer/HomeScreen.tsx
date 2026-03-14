@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Globe, ArrowRight, Shield, Layout, ClipboardCheck, History, ExternalLink } from 'lucide-react';
+import GtmLogo from './GtmLogo';
 
 interface HomeScreenProps {
   url: string;
@@ -41,7 +42,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, lastUrl, onNa
           animate={{ rotate: [0, 5, -5, 0] }}
           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         >
-          🏷
+          <GtmLogo size={80} />
         </motion.div>
         
         <motion.h1 
@@ -93,7 +94,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, lastUrl, onNa
               transition={{ delay: 0.5 }}
             >
               <div className="section-label"><History size={14} /> 최근 방문</div>
-              <button className="recent-item" onClick={() => onNavigate(lastUrl)}>
+              <button className="recent-item" >
                 <span className="recent-url">{lastUrl}</span>
                 <ArrowRight size={14} />
               </button>
@@ -117,26 +118,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, lastUrl, onNa
             </div>
           </motion.div>
         </div>
-
-        <motion.div 
-          className="home-features"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-        >
-          <button className="feature-item" onClick={() => onNavigate(url || 'about:blank', 'spec')}>
-            <div className="feature-icon"><Layout size={20} /></div>
-            <span>명세 작성</span>
-          </button>
-          <button className="feature-item highlight" onClick={() => onNavigate(url || 'about:blank', 'verify')}>
-            <div className="feature-icon"><ClipboardCheck size={20} /></div>
-            <span>빠른 검수 (파일 업로드)</span>
-          </button>
-          <button className="feature-item" onClick={() => onNavigate(url || 'about:blank', 'view')}>
-            <div className="feature-icon"><Shield size={20} /></div>
-            <span>정합성 확인</span>
-          </button>
-        </motion.div>
       </motion.div>
       
       <div className="home-footer">

@@ -20,7 +20,6 @@
 .gtm-spec-group-outline.hoverable:hover {
   border-color: #ea580c !important;
   background-color: rgba(234, 88, 12, 0.25) !important;
-  backdrop-filter: blur(1.5px);
 }
 
 .gtm-spec-label-container {

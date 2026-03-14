@@ -263,6 +263,7 @@ const SpecPopover: React.FC = () => {
             placeholder={form.eventType === 'page' ? '페이지 로드 시' : '상품 상세 페이지 혹은 버튼 클릭 시'}
             value={form.triggerDescription || ''} 
             onChange={e => setForm(prev => ({ ...prev, triggerDescription: e.target.value }))}
+            disabled={config.mode === 'view'}
           />
         </div>
 
@@ -271,13 +272,15 @@ const SpecPopover: React.FC = () => {
           <div className="form-group">
             <div className="label-with-badge">
               <label>대상 요소 위치 (Selector)</label>
-              <button 
-                type="button"
-                className={`recommend-toggle-badge ${showRecommendations ? 'active' : ''}`}
-                onClick={() => setShowRecommendations(!showRecommendations)}
-              >
-                <Sparkles size={11} /> 추천
-              </button>
+              {config.mode !== 'view' && (
+                <button 
+                  type="button"
+                  className={`recommend-toggle-badge ${showRecommendations ? 'active' : ''}`}
+                  onClick={() => setShowRecommendations(!showRecommendations)}
+                >
+                  <Sparkles size={11} /> 추천
+                </button>
+              )}
             </div>
             <div className="selector-input-wrapper">
               <input 

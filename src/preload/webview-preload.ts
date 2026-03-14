@@ -4,20 +4,121 @@ import { ipcRenderer } from 'electron';
 // It acts like the old content script, but sends data to the renderer via IPC
 
 const isTopFrame = window === window.top;
-console.log(`🚀 [GTM GA Assistant] Webview Preload Injected (${isTopFrame ? 'Top Frame' : 'Subframe: ' + window.location.href})`);
+const PRELOAD_VERSION = '1.0.5-shield';
+console.log(`🚀 [GTM GA Assistant] Webview Preload Injected v${PRELOAD_VERSION} (${isTopFrame ? 'Top Frame' : 'Subframe: ' + window.location.href})`);
 
 // 클릭 차단 여부 - spec 모드일 때 true. 기본값은 false로 설정 (안전성).
 let specModeActive = false;
 let selectionEnabled = false;
+let lastHoveredElement: HTMLElement | null = null;
+let hoverDebounceTimeout: any = null;
+let rafId: number | null = null;
+let lastSentRects: string = ''; // JSON stringified for easy deep comparison
 
 ipcRenderer.on('set-spec-mode', (_event, active: boolean) => {
   specModeActive = active;
-  console.log('[webview-preload] specModeActive:', specModeActive);
 });
+
+const ensureSelectionStyle = (enabled: boolean) => {
+  let styleEl = document.getElementById('gtm-assistant-selection-style');
+  if (enabled) {
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'gtm-assistant-selection-style';
+      // Force pointer-events and change cursor for better feedback
+      styleEl.textContent = `
+        * { pointer-events: auto !important; }
+        body, html { cursor: crosshair !important; }
+      `;
+      document.head.appendChild(styleEl);
+    }
+  } else {
+    styleEl?.remove();
+  }
+};
+
+const ensureSelectionShield = (enabled: boolean) => {
+  let shield = document.getElementById('gtm-selection-shield');
+  if (enabled) {
+    if (!shield) {
+      shield = document.createElement('div');
+      shield.id = 'gtm-selection-shield';
+      Object.assign(shield.style, {
+        position: 'fixed',
+        inset: '0',
+        zIndex: '2147483647',
+        cursor: 'crosshair',
+        background: 'transparent',
+        pointerEvents: 'auto',
+        display: 'block',
+        border: 'none',
+        margin: '0',
+        padding: '0'
+      });
+      
+      const parent = document.body || document.documentElement;
+      parent.appendChild(shield);
+      
+      shield.addEventListener('pointermove', (e) => {
+        if (!selectionEnabled) return;
+
+        // CMD(Meta)를 누르고 있을 때만 호버 발동
+        if (!e.metaKey) {
+          if (lastHoveredElement) {
+            lastHoveredElement = null;
+            ipcRenderer.sendToHost('webview-hover', null);
+          }
+          return;
+        }
+
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          const elements = document.elementsFromPoint(e.clientX, e.clientY);
+          const target = elements.find(el => el.id !== 'gtm-selection-shield' && el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT') as HTMLElement;
+
+          if (target && target !== document.documentElement && target !== document.body) {
+            if (target !== lastHoveredElement) {
+              lastHoveredElement = target;
+              handleHover(target, false);
+
+              if (hoverDebounceTimeout) clearTimeout(hoverDebounceTimeout);
+              hoverDebounceTimeout = setTimeout(() => {
+                if (lastHoveredElement === target) {
+                  handleHover(target, true);
+                }
+              }, 150);
+            }
+          } else {
+            if (lastHoveredElement) {
+              lastHoveredElement = null;
+              ipcRenderer.sendToHost('webview-hover', null);
+            }
+          }
+        });
+      });
+
+      shield.addEventListener('pointerdown', (e) => {
+        if (!selectionEnabled || !e.metaKey) return;
+        const elements = document.elementsFromPoint(e.clientX, e.clientY);
+        const rawTarget = elements.find(el => el.id !== 'gtm-selection-shield' && el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT');
+        const target = (rawTarget as HTMLElement)?.closest('a, button, input, select, textarea') || rawTarget;
+        if (target && target !== document.documentElement && target !== document.body) {
+          handleClick(target as HTMLElement);
+        }
+      });
+    } else {
+      shield.style.display = 'block';
+    }
+  } else {
+    if (shield) shield.style.display = 'none';
+  }
+};
 
 ipcRenderer.on('set-selection-enabled', (_event, enabled: boolean) => {
   selectionEnabled = enabled;
-  console.log('[webview-preload] selectionEnabled:', selectionEnabled);
+  ensureSelectionStyle(enabled);
+  ensureSelectionShield(enabled);
 });
 
 const getIframeOffset = () => {
@@ -131,17 +232,10 @@ const getSelector = (element: HTMLElement): string => {
   return path.join(' > ');
 };
 
-document.addEventListener('mouseover', (e) => {
-  const target = e.target as HTMLElement;
-  if (!target) return;
-
+const handleHover = (target: HTMLElement, includeRecommendations: boolean = true) => {
   const offset = getIframeOffset();
   const rect = target.getBoundingClientRect();
   
-  console.log(`[webview-preload] ${isTopFrame ? 'Top' : 'Sub'} hover:`, target.tagName, 'offset:', offset);
-  
-  if (!selectionEnabled) return;
-
   ipcRenderer.sendToHost('webview-hover', {
     tagName: target.tagName,
     className: target.className,
@@ -156,11 +250,20 @@ document.addEventListener('mouseover', (e) => {
       x: rect.x + offset.x,
       y: rect.y + offset.y
     },
-    selector: getSelector(target),
-    recommendations: getSelectorRecommendations(target),
+    selector: includeRecommendations ? getSelector(target) : '',
+    recommendations: includeRecommendations ? getSelectorRecommendations(target) : [],
     isSubframe: !isTopFrame,
-    frameUrl: window.location.href
+    frameUrl: window.location.href,
+    isPartial: !includeRecommendations
   });
+};
+
+document.addEventListener('mouseover', (e) => {
+  if (selectionEnabled) return; // Handled by shield
+  if (specModeActive) return; // spec 모드에서는 shield가 cmd+hover를 처리
+  const target = e.target as HTMLElement;
+  if (!target) return;
+  handleHover(target);
 });
 
 // 마우스 이벤트 차단 (mousedown, mouseup)
@@ -174,27 +277,10 @@ const blockEventInSpecMode = (e: MouseEvent) => {
   }
 };
 
-document.addEventListener('mousedown', blockEventInSpecMode, true);
-document.addEventListener('mouseup', blockEventInSpecMode, true);
-
-document.addEventListener('click', (e) => {
-  const target = (e.target as HTMLElement).closest('a, button, input, select, textarea') || e.target as HTMLElement;
-  if (!target) return;
-
-  // Alt, Cmd(Meta), Ctrl 키를 누르고 클릭하면 무조건 허용
-  if (e.altKey || e.metaKey || e.ctrlKey) return;
-
-  if (specModeActive && selectionEnabled) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  if (!selectionEnabled) return;
-
+const handleClick = (target: HTMLElement) => {
   const offset = getIframeOffset();
   const rect = target.getBoundingClientRect();
 
-  console.log(`[webview-preload] ${isTopFrame ? 'Top' : 'Sub'} click:`, target.tagName, 'offset:', offset);
   ipcRenderer.sendToHost('webview-click', {
     tagName: target.tagName,
     rect: {
@@ -213,6 +299,44 @@ document.addEventListener('click', (e) => {
     isSubframe: !isTopFrame,
     frameUrl: window.location.href
   });
+};
+
+document.addEventListener('pointerdown', (e) => {
+  if (selectionEnabled) return; // Handled by shield
+  
+  // Use elementFromPoint for the most reliable target identification on disabled elements
+  // This bypasses many browser-level restrictions on 'disabled' elements.
+  const rawTarget = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement;
+  const target = rawTarget?.closest('a, button, input, select, textarea') || rawTarget;
+  
+  // 1. Block events first
+  const mouseEvent = new MouseEvent('mousedown', {
+    bubbles: true,
+    cancelable: true,
+    view: window,
+    clientX: e.clientX,
+    clientY: e.clientY
+  });
+  blockEventInSpecMode(mouseEvent as any);
+
+  // 2. Handle selection
+  if (!selectionEnabled) return;
+  if (e.altKey || e.metaKey || e.ctrlKey) return;
+  if (!target) return;
+
+  handleClick(target as HTMLElement);
+}, true);
+
+document.addEventListener('mouseup', blockEventInSpecMode, true);
+
+document.addEventListener('click', (e) => {
+  // Alt, Cmd(Meta), Ctrl 키를 누르고 클릭하면 무조건 허용
+  if (e.altKey || e.metaKey || e.ctrlKey) return;
+
+  if (specModeActive && selectionEnabled) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
 }, true);
 
 
@@ -224,29 +348,93 @@ ipcRenderer.on('highlight-element', (_event, selector) => {
   }
 });
 
+// Meta(Cmd) 키 상태를 renderer에 전달 (webview 포커스 중에도 cmd 감지)
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Meta') ipcRenderer.sendToHost('webview-cmd-key', { pressed: true });
+});
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'Meta') ipcRenderer.sendToHost('webview-cmd-key', { pressed: false });
+});
+
+// Scroll detection: notify renderer to hide overlays while scrolling
+let scrollEndTimeout: any = null;
+window.addEventListener('scroll', () => {
+  ipcRenderer.sendToHost('webview-scrolling', true);
+  if (scrollEndTimeout) clearTimeout(scrollEndTimeout);
+  scrollEndTimeout = setTimeout(() => {
+    ipcRenderer.sendToHost('webview-scrolling', false);
+  }, 150);
+}, { capture: true, passive: true });
+
+// Returns the visible rect of an element after clipping against all scroll/overflow ancestors.
+// Returns null if the element is fully clipped (not visible).
+const getClippedRect = (el: HTMLElement): { top: number; left: number; width: number; height: number } | null => {
+  let r = el.getBoundingClientRect();
+  let clipped = { top: r.top, left: r.left, right: r.right, bottom: r.bottom };
+
+  // Clip against viewport
+  clipped = {
+    top: Math.max(clipped.top, 0),
+    left: Math.max(clipped.left, 0),
+    right: Math.min(clipped.right, window.innerWidth),
+    bottom: Math.min(clipped.bottom, window.innerHeight),
+  };
+  if (clipped.right <= clipped.left || clipped.bottom <= clipped.top) return null;
+
+  // Clip against each scroll/overflow ancestor
+  let parent = el.parentElement;
+  while (parent && parent !== document.documentElement) {
+    const style = window.getComputedStyle(parent);
+    const ov = style.overflow + style.overflowX + style.overflowY;
+    if (ov.includes('hidden') || ov.includes('scroll') || ov.includes('auto') || ov.includes('clip')) {
+      const pr = parent.getBoundingClientRect();
+      clipped = {
+        top: Math.max(clipped.top, pr.top),
+        left: Math.max(clipped.left, pr.left),
+        right: Math.min(clipped.right, pr.right),
+        bottom: Math.min(clipped.bottom, pr.bottom),
+      };
+      if (clipped.right <= clipped.left || clipped.bottom <= clipped.top) return null;
+    }
+    parent = parent.parentElement;
+  }
+
+  return {
+    top: clipped.top,
+    left: clipped.left,
+    width: clipped.right - clipped.left,
+    height: clipped.bottom - clipped.top,
+  };
+};
+
 ipcRenderer.on('get-rects', (_event, selectors: string[]) => {
-  console.log('[webview-preload] get-rects', selectors);
   const rects: Record<string, any> = {};
   const offset = getIframeOffset();
-  
+
   selectors.forEach(selector => {
     try {
-      const el = document.querySelector(selector);
+      const el = document.querySelector(selector) as HTMLElement;
       if (el) {
-        const rect = el.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) {
+        const visible = getClippedRect(el);
+        if (visible && visible.width > 0 && visible.height > 0) {
           rects[selector] = {
-            top: rect.top + offset.y,
-            left: rect.left + offset.x,
-            width: rect.width,
-            height: rect.height,
+            top: Math.round(visible.top + offset.y),
+            left: Math.round(visible.left + offset.x),
+            width: Math.round(visible.width),
+            height: Math.round(visible.height),
             borderRadius: window.getComputedStyle(el).borderRadius
           };
         }
       }
     } catch (e) { /* ignore */ }
   });
-  console.log('[webview-preload] sending rects-update', rects);
+
+  const currentRectsStr = JSON.stringify(rects);
+  if (currentRectsStr === lastSentRects) {
+    return;
+  }
+  
+  lastSentRects = currentRectsStr;
   ipcRenderer.sendToHost('rects-update', rects);
 });
 

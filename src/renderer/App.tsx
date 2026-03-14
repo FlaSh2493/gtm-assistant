@@ -2,18 +2,21 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GTMAssistant from './GTMAssistant';
 import { storage } from '../utils/storage';
 import { AppConfig } from '../types';
-import { Power, MousePointer2, ClipboardCheck, Settings, Globe, ChevronLeft, ChevronRight, RotateCw, Eye, CheckCircle2, Home, Tag } from 'lucide-react';
+import { Power, MousePointer2, ClipboardCheck, Settings, Globe, ChevronLeft, ChevronRight, RotateCw, Eye, CheckCircle2, Home } from 'lucide-react';
 import HomeScreen from './HomeScreen';
 import { resolveUrl } from './utils/UrlResolver';
+import GtmLogo from './GtmLogo';
 
 const App: React.FC = () => {
   const [initialUrl, setInitialUrl] = useState<string | null>(null);
   const [inputUrl, setInputUrl] = useState('');
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [showHome, setShowHome] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   
   const webviewRef = useRef<any>(null);
+  const webviewContentsIdRef = useRef<number | null>(null);
   const [preloadPath] = useState(() =>
     window.electronAPI?.getPreloadPath?.('webview-preload.cjs') ?? ''
   );
@@ -40,15 +43,18 @@ const App: React.FC = () => {
     if (!targetUrl) return;
 
     setIsEditingUrl(false);
-    setShowHome(false);
     
     // Always set initialUrl so the webview src is in sync with our intent
     setInitialUrl(targetUrl);
     setInputUrl(targetUrl);
+    setShowHome(false);
 
     if (webviewRef.current) {
-      if (webviewRef.current.getURL() !== targetUrl) {
-        webviewRef.current.loadURL(targetUrl);
+      try {
+        const id = webviewRef.current.getWebContentsId();
+        window.electronAPI.send('webview-load-url', { webContentsId: id, url: targetUrl });
+      } catch (err) {
+        console.warn('[App] Webview not ready:', err);
       }
     }
   };
@@ -82,26 +88,24 @@ const App: React.FC = () => {
 
   // Use a ref callback so listeners are attached as soon as webview mounts
   const webviewCallbackRef = useCallback((node: any) => {
-    if (!node) return;
+    if (!node) {
+      webviewRef.current = null;
+      return;
+    }
     webviewRef.current = node;
 
     const handleWebviewMessage = (event: any) => {
-      console.log('[App] Received ipc-message from webview:', event.channel, event.args);
       if (event.channel === 'webview-hover') {
         window.dispatchEvent(new CustomEvent('webview-element-hover', { detail: event.args[0] }));
       } else if (event.channel === 'webview-click') {
         window.dispatchEvent(new CustomEvent('webview-element-click', { detail: event.args[0] }));
+      } else if (event.channel === 'webview-cmd-key') {
+        window.dispatchEvent(new CustomEvent('webview-cmd-key', { detail: event.args[0] }));
       }
     };
 
     const handleNavigate = (event: any) => {
       const newUrl = event.url;
-      const isSPA = event.type === 'did-navigate-in-page';
-      console.log(`[App] Webview navigated (${isSPA ? 'SPA' : 'Hard'}):`, newUrl);
-      
-      // We don't update initialUrl here to avoid React re-rendering the src attribute
-      // and causing a hard reload on SPA transitions.
-      
       if (!isEditingUrl) {
         setInputUrl(newUrl);
       }
@@ -116,17 +120,15 @@ const App: React.FC = () => {
     };
 
     const handleDomReady = () => {
-      console.log('[App] Webview DOM ready');
-      // 페이지 로드마다 preload가 재초기화되므로 현재 모드를 다시 동기화
+      // webContentsId 캐싱 (getWebContentsId는 동기 블로킹이므로 최초 1회만)
+      if (webviewContentsIdRef.current === null) {
+        try { webviewContentsIdRef.current = node.getWebContentsId(); } catch (_) {}
+      }
       window.dispatchEvent(new CustomEvent('webview-dom-ready'));
     };
 
     const handlePreloadError = (event: any) => {
       console.error('[App] Webview preload error:', event);
-    };
-
-    const handleWebviewConsole = (event: any) => {
-      console.log(`[Webview Console] ${event.message}`, event.sourceId, event.line);
     };
 
     node.addEventListener('ipc-message', handleWebviewMessage);
@@ -135,7 +137,8 @@ const App: React.FC = () => {
     node.addEventListener('did-fail-load', handleFailLoad);
     node.addEventListener('dom-ready', handleDomReady);
     node.addEventListener('preload-error', handlePreloadError);
-    node.addEventListener('console-message', handleWebviewConsole);
+    node.addEventListener('did-start-loading', () => setIsLoading(true));
+    node.addEventListener('did-stop-loading', () => setIsLoading(false));
   }, []);
 
   // initialUrl이 준비되기 전까지 로딩 표시 (웹뷰 초기 로드 시 리셋 방지)
@@ -145,8 +148,8 @@ const App: React.FC = () => {
     <div className="app-container">
       <header className="app-header">
         <div className="header-left">
-          <div className="brand-icon">
-            <Tag size={20} strokeWidth={2.5} />
+          <div className="brand-logo">
+            <GtmLogo size={32} />
           </div>
           <div className="brand-text">
             <span className="brand-main">GTM</span>
@@ -213,7 +216,7 @@ const App: React.FC = () => {
       </header>
 
       <main className="app-main">
-        {showHome ? (
+        <div style={{ position: 'absolute', inset: 0, zIndex: showHome ? 1 : -1, visibility: showHome ? 'visible' : 'hidden' }}>
           <HomeScreen 
             url={inputUrl}
             onUrlChange={(val) => {
@@ -226,13 +229,16 @@ const App: React.FC = () => {
               if (!targetUrl) return;
               
               setInputUrl(targetUrl);
-              setInitialUrl(targetUrl); // Ensure initialUrl is set BEFORE webview mounts
+              setInitialUrl(targetUrl); 
               setIsEditingUrl(false);
               setShowHome(false);
-              
+
               if (webviewRef.current) {
-                if (webviewRef.current.getURL() !== targetUrl) {
-                  webviewRef.current.loadURL(targetUrl);
+                try {
+                  const id = webviewRef.current.getWebContentsId();
+                  window.electronAPI.send('webview-load-url', { webContentsId: id, url: targetUrl });
+                } catch (err) {
+                  console.warn('[App] Webview not ready:', err);
                 }
               }
               
@@ -241,8 +247,13 @@ const App: React.FC = () => {
               }
             }} 
           />
-        ) : (
-          <div className="webview-container">
+        </div>
+        <div className="webview-container" style={{ visibility: showHome ? 'hidden' : 'visible' }}>
+            {isLoading && !showHome && (
+              <div className="webview-loading-overlay">
+                <div className="webview-loading-spinner" />
+              </div>
+            )}
             <webview
               {...({
                 ref: (node: any) => {
@@ -265,7 +276,6 @@ const App: React.FC = () => {
               setConfig={setConfig} 
             />
           </div>
-        )}
       </main>
     </div>
   );

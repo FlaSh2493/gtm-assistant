@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, webContents } from 'electron';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
@@ -46,6 +46,14 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// Webview URL 로딩을 main process에서 처리 (renderer 블록 방지)
+ipcMain.on('webview-load-url', (_event, { webContentsId, url }) => {
+  const wc = webContents.fromId(webContentsId);
+  if (wc && !wc.isDestroyed()) {
+    wc.loadURL(url);
+  }
 });
 
 // IPC Handlers for Storage (Replacement for chrome.storage)

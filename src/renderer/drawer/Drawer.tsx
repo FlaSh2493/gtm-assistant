@@ -6,8 +6,7 @@ import SpecList from './SpecList';
 import VerificationDrawer from '../verification/VerificationDrawer';
 
 const Drawer: React.FC = () => {
-  const { config, setMode, specs, updateConfig, showAllBadges, setShowAllBadges, webviewRef, isWebviewReady } = useGTMAssistant();
-  const [isOpen, setIsOpen] = useState(false);
+  const { config, setMode, specs, updateConfig, showAllBadges, setShowAllBadges, webviewRef, isWebviewReady, isDrawerOpen, setIsDrawerOpen } = useGTMAssistant();
   
   const [pageInfo, setPageInfo] = useState({ title: 'Loading...', url: '' });
 
@@ -66,14 +65,14 @@ const Drawer: React.FC = () => {
       }}
     >
       <AnimatePresence mode="wait">
-        {!isOpen ? (
+        {!isDrawerOpen ? (
           <motion.button
             key="fab"
             className="fab-trigger"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            onClick={() => setIsOpen(true)}
+            onClick={() => setIsDrawerOpen(true)}
             style={{
               width: 56,
               height: 56,
@@ -118,7 +117,7 @@ const Drawer: React.FC = () => {
                   <span className="logo">🏷</span>
                   <span className="title">GTM GA Assistant</span>
                 </div>
-                <button className="close-btn" onClick={() => setIsOpen(false)}>
+                <button className="close-btn" onClick={() => setIsDrawerOpen(false)}>
                   <X size={20} />
                 </button>
               </div>
@@ -147,10 +146,6 @@ const Drawer: React.FC = () => {
                   <span className="info-label">URL</span>
                   <span className="info-value" title={pageInfo.url}>{pageInfo.url}</span>
                 </div>
-              </div>
-
-              <div className="drawer-controls">
-                {/* Toggles removed per user request */}
               </div>
             </div>
 

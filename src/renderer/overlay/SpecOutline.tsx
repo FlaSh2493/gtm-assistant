@@ -15,6 +15,7 @@ const SpecOutline: React.FC = () => {
   const [groupedSpecs, setGroupedSpecs] = useState<GroupedSpec[]>([]);
   const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
 
+
   // Passive hover detection: Expand labels if the hovered element matches a spec's selector
   useEffect(() => {
     if (config.mode === 'spec' && hoveredElement?.selector) {
@@ -70,17 +71,23 @@ const SpecOutline: React.FC = () => {
 
     const webview = webviewRef.current;
     if (webview) {
-      webview.addEventListener('ipc-message', handleRectsUpdate);
-      
+      const handleIpcMessage = (event: any) => {
+        if (event.channel === 'rects-update') {
+          handleRectsUpdate(event);
+        } else if (event.channel === 'webview-scrolling') {
+          requestRects();
+        }
+      };
+
+      webview.addEventListener('ipc-message', handleIpcMessage);
+
       // Initial request
       requestRects();
 
-      // Poll or listen for scroll/resize if possible 
-      // (Simplified for now, we can add more robust sync in next step)
       const interval = setInterval(requestRects, 1000);
-      
+
       return () => {
-        webview.removeEventListener('ipc-message', handleRectsUpdate);
+        webview.removeEventListener('ipc-message', handleIpcMessage);
         clearInterval(interval);
       };
     }
@@ -109,6 +116,10 @@ const SpecOutline: React.FC = () => {
         // Dynamic height calculation to prevent overflow
         const estimatedHeight = isHovered ? (group.specs.length * 30 + 10) : 40;
         const isTopSpaceTight = group.rect.top < estimatedHeight;
+        
+        // Horizontal repositioning logic
+        const estimatedWidth = isHovered ? 200 : 120; // Expanded labels are wider
+        const isRightSpaceTight = (group.rect.left + estimatedWidth) > window.innerWidth;
 
         return (
           <motion.div
@@ -147,33 +158,30 @@ const SpecOutline: React.FC = () => {
               pointerEvents: config.mode === 'spec' ? 'none' : 'auto',
               cursor: config.mode === 'view' ? 'pointer' : 'default',
               boxSizing: 'border-box',
-              backdropFilter: (isHovered && config.mode !== 'view') ? 'blur(1.5px)' : 'none',
               transition: 'border-color 0.2s, background-color 0.2s',
-              zIndex: (isHovered && config.mode !== 'view') ? 12 : 10,
+              zIndex: isHovered ? 12 : 10,
             }}
           >
             <div
-              className={`gtm-spec-label-container ${isHovered ? 'expanded' : ''}`}
+              className={`gtm-spec-label-container ${isHovered ? 'expanded' : ''} ${isRightSpaceTight ? 'right-aligned' : ''}`}
               style={{
                 position: 'absolute',
                 top: isTopSpaceTight ? '100%' : 'auto',
                 bottom: !isTopSpaceTight ? '100%' : 'auto',
                 paddingTop: isTopSpaceTight ? '6px' : '0',
                 paddingBottom: !isTopSpaceTight ? '6px' : '0',
-                left: '-2px',
+                left: isRightSpaceTight ? 'auto' : '-2px',
+                right: isRightSpaceTight ? '-2px' : 'auto',
                 display: 'flex',
                 flexDirection: 'column',
+                alignItems: isRightSpaceTight ? 'flex-end' : 'flex-start',
                 justifyContent: isTopSpaceTight ? 'flex-start' : 'flex-end',
                 gap: '4px',
                 zIndex: 13,
                 pointerEvents: 'auto', // Labels must always be interactive
               }}
-              onMouseEnter={() => {
-                if (config.mode === 'spec') setHoveredGroupId(group.selector);
-              }}
-              onMouseLeave={() => {
-                if (config.mode === 'spec') setHoveredGroupId(null);
-              }}
+              onMouseEnter={() => setHoveredGroupId(group.selector)}
+              onMouseLeave={() => setHoveredGroupId(null)}
             >
               {!isHovered ? (
                 <div

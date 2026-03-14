@@ -1,15 +1,9 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useGTMAssistant } from '../GTMAssistant';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const HoverOutline: React.FC = () => {
   const { hoveredElement, config } = useGTMAssistant();
-
-  useEffect(() => {
-    if (hoveredElement) {
-      console.log('[HoverOutline] Rendering at:', hoveredElement.rect);
-    }
-  }, [hoveredElement]);
 
   if (!config.showHover || !hoveredElement || config.mode !== 'spec') return null;
 
@@ -50,7 +44,7 @@ const HoverOutline: React.FC = () => {
           pointerEvents: 'none',
           zIndex: 9998,
           boxSizing: 'border-box',
-          backdropFilter: 'blur(0.5px)',
+          backdropFilter: 'none',
           backgroundColor: 'transparent', // Ensure it's transparent
         }}
       />
