@@ -1,4 +1,4 @@
-import { EventSpec } from '../../../../shared/types';
+import { EventSpec } from '../../../entities/spec/model/types';
 
 // 기획된 CSV 명세 (Plan)
 export const EXAMPLE_CSV_PLAN: Partial<EventSpec>[] = [

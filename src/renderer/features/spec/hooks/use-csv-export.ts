@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { EventSpec, CSVColumn } from '../../../../shared/types';
+import { EventSpec, CSVColumn } from '../../../entities/spec/model/types';
 
 export const useCSVExport = () => {
   const exportCSV = useCallback((specs: EventSpec[], columns: CSVColumn[]) => {

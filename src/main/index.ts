@@ -23,6 +23,7 @@ function createWindow() {
     width: 1280,
     height: 800,
     title: 'GTM GA Assistant',
+    icon: join(__dirname, '../public/icons/icon.ico'),
   });
 
   // 1. 게스트 뷰 (웹사이트) - 아래 레이어

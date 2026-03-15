@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { EventSpec, EventParameter } from '../../../../shared/types';
+import { EventSpec, EventParameter } from '../../../entities/spec/model/types';
 import { v4 as uuidv4 } from 'uuid';
 
 export const useGtmImport = () => {

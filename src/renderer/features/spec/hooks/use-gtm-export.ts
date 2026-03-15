@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { EventSpec } from '../../../../shared/types';
+import { EventSpec } from '../../../entities/spec/model/types';
 
 interface GtmContainer {
   exportFormatVersion: number;

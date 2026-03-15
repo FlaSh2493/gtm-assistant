@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import GTMAssistant from './context/gtm-assistant';
-import { storage } from '../shared/utils/storage';
-import { AppConfig } from '../shared/types';
+import { GTMAssistantProvider } from './app/providers';
+import AssistantOverlay from './widgets/assistant-overlay/ui/assistant-overlay';
+import HomePage from './pages/home/ui/home-page';
+import { configStorage } from './entities/config/api/config-storage';
+import { AppConfig } from './entities/config/model/types';
 import { Power, MousePointer2, Globe, ChevronLeft, ChevronRight, RotateCw, Home} from 'lucide-react';
-import HomeScreen from './components/home-screen';
-import { resolveUrl } from './utils/url-resolver';
-import { INTERACTIVE_SELECTORS } from './utils/constants';
-import GtmLogo from './components/gtm-logo';
+import { resolveUrl } from './shared/lib/url-resolver';
+import { INTERACTIVE_SELECTORS } from './shared/config/interactive-selectors';
+import GtmLogo from './shared/ui/gtm-logo';
 
 const App: React.FC = () => {
   const [initialUrl, setInitialUrl] = useState<string | null>(null);
@@ -20,8 +21,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // 1. 설정 로드
-    storage.getConfig().then(setConfig);
-    
+    configStorage.getConfig().then(setConfig);
+
     setInitialUrl('about:blank');
     setShowHome(true);
   }, []);
@@ -175,7 +176,7 @@ const App: React.FC = () => {
 
   const updateConfigInAppOrAssist = async (newConfig: AppConfig) => {
     setConfig(newConfig);
-    await storage.setConfig(newConfig);
+    await configStorage.setConfig(newConfig);
   };
 
   const handleToggleEnabled = async () => {
@@ -261,9 +262,9 @@ const App: React.FC = () => {
 
       <main className="app-main">
         <div style={{ position: 'absolute', inset: 0, zIndex: showHome ? 1 : -1, visibility: showHome ? 'visible' : 'hidden' }}>
-          <HomeScreen 
+          <HomePage
             url={inputUrl}
-            onUrlChange={(val) => {
+            onUrlChange={(val: string) => {
               setInputUrl(val);
               setIsEditingUrl(true);
             }}
@@ -277,10 +278,9 @@ const App: React.FC = () => {
               </div>
             )}
             {/* 실제 웹뷰는 메인 프로세스에서 이 영역 뒤에 배치됨 */}
-            <GTMAssistant 
-              config={config} 
-              setConfig={setConfig} 
-            />
+            <GTMAssistantProvider config={config} setConfig={setConfig}>
+              <AssistantOverlay />
+            </GTMAssistantProvider>
           </div>
       </main>
     </div>

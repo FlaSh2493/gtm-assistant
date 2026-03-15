@@ -1,4 +1,4 @@
-import { EventSpec } from '../../../../shared/types';
+import { EventSpec } from '../../../entities/spec/model/types';
 import { GTMGA4Tag, GTMTrigger } from './gtm-parser';
 
 export interface VerificationResult {

@@ -5,10 +5,10 @@
   "type": "module",
   "main": "dist-main/index.mjs",
   "scripts": {
-    "dev": "vite --config vite.config.mts",
-    "build": "tsc && vite build --config vite.config.mts",
-    "electron:dev": "vite --config vite.config.mts",
-    "electron:build": "tsc && vite build --config vite.config.mts && electron-builder",
+    "dev": "vite --config vite.config.ts",
+    "build": "tsc && vite build --config vite.config.ts",
+    "electron:dev": "vite --config vite.config.ts",
+    "electron:build": "tsc && vite build --config vite.config.ts && electron-builder",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
@@ -21,6 +21,20 @@
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.3.0",
     "uuid": "^10.0.0"
+  },
+  "build": {
+    "appId": "com.gtm-assistant",
+    "productName": "GTM GA Assistant",
+    "icon": "public/icons/icon",
+    "win": {
+      "icon": "public/icons/icon.ico"
+    },
+    "mac": {
+      "icon": "public/icons/icon.icns"
+    },
+    "linux": {
+      "icon": "public/icons/icon.png"
+    }
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
