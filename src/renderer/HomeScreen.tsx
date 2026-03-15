@@ -1,16 +1,15 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Globe, ArrowRight, Shield, Layout, ClipboardCheck, History, ExternalLink } from 'lucide-react';
+import { Globe, ArrowRight, Shield, Layout, ExternalLink } from 'lucide-react';
 import GtmLogo from './GtmLogo';
 
 interface HomeScreenProps {
   url: string;
   onUrlChange: (url: string) => void;
-  lastUrl: string | null;
   onNavigate: (url: string, mode?: 'spec' | 'verify') => void;
 }
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, lastUrl, onNavigate }) => {
+const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, onNavigate }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (url.trim()) {
@@ -86,21 +85,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, lastUrl, onNa
         </motion.form>
 
         <div className="home-secondary-actions">
-          {lastUrl && (
-            <motion.div 
-              className="recent-sites"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-            >
-              <div className="section-label"><History size={14} /> 최근 방문</div>
-              <button className="recent-item" >
-                <span className="recent-url">{lastUrl}</span>
-                <ArrowRight size={14} />
-              </button>
-            </motion.div>
-          )}
-
           <motion.div 
             className="quick-links"
             initial={{ opacity: 0 }}

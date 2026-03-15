@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useGTMAssistant } from '../GTMAssistant';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronUp, ChevronDown, Download, Eye, EyeOff, Settings, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import SpecList from './SpecList';
 import VerificationDrawer from '../verification/VerificationDrawer';
 
 const Drawer: React.FC = () => {
-  const { config, setMode, specs, updateConfig, showAllBadges, setShowAllBadges, currentUrl, currentTitle, isDrawerOpen, setIsDrawerOpen } = useGTMAssistant();
+  const { config, setMode, currentUrl, currentTitle, isDrawerOpen, setIsDrawerOpen } = useGTMAssistant();
   
   const pageInfo = { title: currentTitle || 'Loading...', url: currentUrl || '' };
 

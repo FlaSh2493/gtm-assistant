@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle, AlertCircle, HelpCircle, FileUp, Database, FileSpreadsheet, RotateCcw } from 'lucide-react';
+import { CheckCircle, AlertCircle, HelpCircle, Database, FileSpreadsheet, RotateCcw } from 'lucide-react';
 import { parseGTMGA4Tags, parseGTMTriggers } from './GTMParser';
 import { EXAMPLE_GTM_JSON } from './ExampleData';
 import { verifySpecs, VerificationResult } from './VerificationService';

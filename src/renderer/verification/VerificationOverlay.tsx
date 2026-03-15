@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, AlertCircle, XCircle, HelpCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { CheckCircle, AlertCircle, HelpCircle } from 'lucide-react';
 import { parseGTMGA4Tags, parseGTMTriggers } from './GTMParser';
 import { verifySpecs, VerificationResult } from './VerificationService';
 import { useGTMAssistant } from '../GTMAssistant';
@@ -8,7 +8,7 @@ import { EXAMPLE_GTM_JSON } from './ExampleData';
 import './verification.css';
 
 const VerificationOverlay: React.FC = () => {
-  const { config, hoveredElement, isWebviewReady, specs, externalSpecs, gtmJson, currentUrl, setIsDrawerOpen, sendToWebview } = useGTMAssistant();
+  const { config, isWebviewReady, specs, externalSpecs, gtmJson, currentUrl, setIsDrawerOpen, sendToWebview } = useGTMAssistant();
   const [results, setResults] = useState<VerificationResult[]>([]);
   const [hoveredSelector, setHoveredSelector] = useState<string | null>(null);
   const [elementRects, setElementRects] = useState<Record<string, any>>({});

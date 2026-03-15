@@ -171,24 +171,27 @@ const getSelector = (element: HTMLElement): string => {
   return path.join(' > ');
 };
 
-const handleHover = (target: HTMLElement, includeRecommendations: boolean = true) => {
+const getOffsetRect = (el: HTMLElement) => {
   const offset = getIframeOffset();
-  const rect = target.getBoundingClientRect();
-  
+  const rect = el.getBoundingClientRect();
+  return {
+    top: rect.top + offset.y,
+    left: rect.left + offset.x,
+    width: rect.width,
+    height: rect.height,
+    bottom: rect.bottom + offset.y,
+    right: rect.right + offset.x,
+    x: rect.x + offset.x,
+    y: rect.y + offset.y,
+  };
+};
+
+const handleHover = (target: HTMLElement, includeRecommendations: boolean = true) => {
   ipcRenderer.send('webview-ipc-relay', 'webview-hover', {
     tagName: target.tagName,
     className: target.className,
     id: target.id,
-    rect: {
-      top: rect.top + offset.y,
-      left: rect.left + offset.x,
-      width: rect.width,
-      height: rect.height,
-      bottom: rect.bottom + offset.y,
-      right: rect.right + offset.x,
-      x: rect.x + offset.x,
-      y: rect.y + offset.y
-    },
+    rect: getOffsetRect(target),
     selector: includeRecommendations ? getSelector(target) : '',
     recommendations: includeRecommendations ? getSelectorRecommendations(target) : [],
     isSubframe: !isTopFrame,
@@ -198,21 +201,9 @@ const handleHover = (target: HTMLElement, includeRecommendations: boolean = true
 };
 
 const handleClick = (target: HTMLElement) => {
-  const offset = getIframeOffset();
-  const rect = target.getBoundingClientRect();
-
   ipcRenderer.send('webview-ipc-relay', 'webview-click', {
     tagName: target.tagName,
-    rect: {
-      top: rect.top + offset.y,
-      left: rect.left + offset.x,
-      width: rect.width,
-      height: rect.height,
-      bottom: rect.bottom + offset.y,
-      right: rect.right + offset.x,
-      x: rect.x + offset.x,
-      y: rect.y + offset.y
-    },
+    rect: getOffsetRect(target),
     outerHTML: target.outerHTML.substring(0, 1000),
     selector: getSelector(target),
     recommendations: getSelectorRecommendations(target),
@@ -322,7 +313,7 @@ window.addEventListener('scroll', () => {
   ipcRenderer.send('webview-ipc-relay', 'webview-scrolling', true);
   if (scrollEndTimeout) clearTimeout(scrollEndTimeout);
   scrollEndTimeout = setTimeout(() => {
-    ipcRenderer.send('webview-scrolling', false);
+    ipcRenderer.send('webview-ipc-relay', 'webview-scrolling', false);
   }, 150);
 }, { capture: true, passive: true });
 
@@ -370,6 +361,7 @@ const getClippedRect = (el: HTMLElement): { top: number; left: number; width: nu
 ipcRenderer.on('get-rects', (_event, selectors: string[]) => {
   const rects: Record<string, any> = {};
   const offset = getIframeOffset();
+  lastSentRects = ''; // 항상 최신 rects를 전송 (캐시 무효화)
 
   selectors.forEach(selector => {
     try {

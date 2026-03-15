@@ -69,7 +69,7 @@ const SpecOutline: React.FC = () => {
     // Initial request
     requestRects();
 
-    const interval = setInterval(requestRects, 1000);
+    const interval = setInterval(requestRects, 300);
 
     return () => {
       window.removeEventListener('rects-update', handleRectsUpdate);
@@ -79,6 +79,22 @@ const SpecOutline: React.FC = () => {
   }, [specs, config.mode, showAllBadges, isWebviewReady, sendToWebview]);
 
   if (config.mode !== 'spec' || !showAllBadges || groupedSpecs.length === 0) return null;
+
+  const specLabelStyle: React.CSSProperties = {
+    background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
+    color: 'white',
+    fontSize: '11px',
+    fontWeight: 800,
+    padding: '4px 10px',
+    borderRadius: '6px',
+    whiteSpace: 'nowrap',
+    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    cursor: 'pointer',
+    border: '1px solid rgba(255,255,255,0.2)',
+  };
 
   const handleEditClick = (e: React.MouseEvent, spec: EventSpec, rect: any, selector: string) => {
     e.stopPropagation();
@@ -158,21 +174,7 @@ const SpecOutline: React.FC = () => {
                   key="compact"
                   className="gtm-spec-label-compact"
                   onClick={(e) => handleEditClick(e, mainSpec, group.rect, group.selector)}
-                  style={{
-                    background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
-                    color: 'white',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    whiteSpace: 'nowrap',
-                    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                  }}
+                  style={specLabelStyle}
                 >
                   <Tag size={12} fill="white" />
                   {mainSpec.eventName}
@@ -203,21 +205,7 @@ const SpecOutline: React.FC = () => {
                       key={spec.id}
                       className="gtm-spec-label-item"
                       onClick={(e) => handleEditClick(e, spec, group.rect, group.selector)}
-                      style={{
-                        background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
-                        color: 'white',
-                        fontSize: '11px',
-                        fontWeight: 800,
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        whiteSpace: 'nowrap',
-                        boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                      }}
+                      style={specLabelStyle}
                     >
                       <Tag size={12} fill="white" />
                       {spec.eventName}

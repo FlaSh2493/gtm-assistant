@@ -3,7 +3,7 @@ import { useGTMAssistant } from '../GTMAssistant';
 import { EventParameter, EventSpec } from '../../types';
 import { storage } from '../../utils/storage';
 import { v4 as uuidv4 } from 'uuid';
-import { X, Plus, Trash2, Settings, Sparkles, Copy, Check } from 'lucide-react';
+import { X, Plus, Trash2, Sparkles, Copy, Check } from 'lucide-react';
 
 
 const SpecPopover: React.FC = () => {

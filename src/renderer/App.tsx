@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GTMAssistant from './GTMAssistant';
 import { storage } from '../utils/storage';
 import { AppConfig } from '../types';
-import { Power, MousePointer2, ClipboardCheck, Settings, Globe, ChevronLeft, ChevronRight, RotateCw, Home} from 'lucide-react';
+import { Power, MousePointer2, Globe, ChevronLeft, ChevronRight, RotateCw, Home} from 'lucide-react';
 import HomeScreen from './HomeScreen';
 import { resolveUrl } from './utils/UrlResolver';
+import { INTERACTIVE_SELECTORS } from './utils/constants';
 import GtmLogo from './GtmLogo';
 
 const App: React.FC = () => {
@@ -21,18 +22,13 @@ const App: React.FC = () => {
     // 1. 설정 로드
     storage.getConfig().then(setConfig);
     
-    // 2. 마지막 URL 로드 및 초기 로딩 주소 설정
-    storage.getLastUrl().then(lastUrl => {
-      if (lastUrl) {
-        setInitialUrl(lastUrl);
-        setInputUrl(lastUrl);
-      } else {
-        setInitialUrl('about:blank');
-      }
-      // Always show home initially
-      setShowHome(true);
-    });
+    setInitialUrl('about:blank');
+    setShowHome(true);
   }, []);
+
+  useEffect(() => {
+    window.electronAPI.send('set-show-home', showHome);
+  }, [showHome]);
 
   // Webview 컨테이너 크기 모니터링 및 메인 프로세스로 전달
   useEffect(() => {
@@ -79,7 +75,6 @@ const App: React.FC = () => {
         case 'did-navigate-in-page': {
           const newUrl = args[0].url;
           if (!isEditingUrl) setInputUrl(newUrl);
-          if (newUrl && newUrl !== 'about:blank') storage.setLastUrl(newUrl);
           break;
         }
         case 'did-start-loading': setIsLoading(true); break;
@@ -120,17 +115,20 @@ const App: React.FC = () => {
     }
   }, [showHome]);
 
-  const handleUrlSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const targetUrl = resolveUrl(inputUrl);
+  const navigateTo = (url: string, mode?: 'spec' | 'verify') => {
+    const targetUrl = resolveUrl(url);
     if (!targetUrl) return;
-
     setIsEditingUrl(false);
     setInitialUrl(targetUrl);
     setInputUrl(targetUrl);
     setShowHome(false);
-
     window.electronAPI.loadUrl(targetUrl);
+    if (mode && config) updateConfigInAppOrAssist({ ...config, mode });
+  };
+
+  const handleUrlSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    navigateTo(inputUrl);
   };
 
   const handleGoHome = () => {
@@ -146,17 +144,7 @@ const App: React.FC = () => {
     if (showHome) return;
 
     const syncUIBounds = () => {
-      const interactiveSelectors = [
-        '.app-header',
-        '.drawer-container',
-        '.spec-popover',
-        '.popover-overlay', // Changed from > div to capture the full overlay background for dismiss clicks
-        '.gtm-spec-label-container',
-        '.pageview-badge',
-        '.verification-overlay-content'
-      ];
-
-      const boundsList = interactiveSelectors
+      const boundsList = INTERACTIVE_SELECTORS
         .flatMap(selector => {
           const elements = Array.from(document.querySelectorAll(selector));
           return elements.map(el => {
@@ -279,22 +267,7 @@ const App: React.FC = () => {
               setInputUrl(val);
               setIsEditingUrl(true);
             }}
-            lastUrl={initialUrl !== 'about:blank' ? initialUrl : null}
-            onNavigate={(url, mode) => {
-              const targetUrl = resolveUrl(url);
-              if (!targetUrl) return;
-              
-              setInputUrl(targetUrl);
-              setInitialUrl(targetUrl); 
-              setIsEditingUrl(false);
-              setShowHome(false);
-
-              window.electronAPI.loadUrl(targetUrl);
-              
-              if (mode && config) {
-                updateConfigInAppOrAssist({ ...config, mode });
-              }
-            }} 
+            onNavigate={navigateTo}
           />
         </div>
         <div className="webview-container" ref={containerRef} style={{ visibility: showHome ? 'hidden' : 'visible' }}>

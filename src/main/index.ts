@@ -12,6 +12,8 @@ let mainWindow: BaseWindow | null = null;
 let uiView: WebContentsView | null = null;
 let guestView: WebContentsView | null = null;
 let isCmdPressed = false;
+let isSpecModeActive = false;
+let isShowingHome = true;
 let lastGuestX = -1;
 let lastGuestY = -1;
 
@@ -74,7 +76,11 @@ function createWindow() {
   guestView.webContents.on('did-navigate-in-page', (_e, url) => forwardEvent('did-navigate-in-page', { url }));
   guestView.webContents.on('did-start-loading', () => forwardEvent('did-start-loading'));
   guestView.webContents.on('did-stop-loading', () => forwardEvent('did-stop-loading'));
-  guestView.webContents.on('dom-ready', () => forwardEvent('dom-ready'));
+  guestView.webContents.on('dom-ready', () => {
+    // 페이지 로드/이동 시 현재 spec 모드 상태를 즉시 재전송
+    guestView?.webContents.mainFrame.send('set-spec-mode', isSpecModeActive);
+    forwardEvent('dom-ready');
+  });
   guestView.webContents.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL) =>
     forwardEvent('did-fail-load', { errorCode, errorDescription, validatedURL })
   );
@@ -140,7 +146,7 @@ function createWindow() {
 
   // guestView 클릭 relay 후 포커스 전달 (모달 등 즉시 동작)
   mainWindow.on('focus', () => {
-    if (guestView && !guestView.webContents.isDestroyed()) {
+    if (!isShowingHome && guestView && !guestView.webContents.isDestroyed()) {
       guestView.webContents.focus();
     }
   });
@@ -199,8 +205,18 @@ ipcMain.on('relay-mouse-down', (_event, { x, y, meta }: { x: number; y: number; 
   guestView.webContents.focus();
 });
 
-ipcMain.on('set-spec-mode-main', () => {
-  // spec 모드 여부는 렌더러에서만 관리, 호환성 유지용
+ipcMain.on('set-show-home', (_event, value: boolean) => {
+  isShowingHome = value;
+  if (!value && guestView && !guestView.webContents.isDestroyed()) {
+    guestView.webContents.focus();
+  }
+});
+
+ipcMain.on('set-spec-mode-main', (_event, active: boolean) => {
+  isSpecModeActive = active;
+  try {
+    guestView?.webContents.mainFrame.send('set-spec-mode', active);
+  } catch (e) {}
 });
 
 ipcMain.on('relay-scroll', (_event, { x, y, deltaX, deltaY }: { x: number; y: number; deltaX: number; deltaY: number }) => {

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AppConfig, EventSpec } from '../types';
 import { storage } from '../utils/storage';
+import { INTERACTIVE_SELECTORS } from './utils/constants';
 import HoverOutline from './overlay/HoverOutline';
 import Drawer from './drawer/drawer';
 import Popover from './overlay/popover';
@@ -100,15 +101,17 @@ const GTMAssistant: React.FC<Props> = ({ config, setConfig }) => {
     }
   };
 
+  const syncSpecModeToWebview = (cfg: AppConfig) => {
+    const isSpecActive = cfg.enabled && cfg.mode === 'spec';
+    const isSelectionEnabled = isSpecActive && isCmdPressedRef.current;
+    sendToWebview('set-spec-mode', isSpecActive);
+    sendToWebview('set-selection-enabled', isSelectionEnabled);
+    window.electronAPI.send('set-spec-mode-main', isSpecActive);
+  };
+
   // config가 바뀔 때마다 webview preload에 spec 모드 활성 여부를 전달
   useEffect(() => {
-    const isBlockActive = config.enabled && config.mode === 'spec';
-    sendToWebview('set-spec-mode', isBlockActive);
-    window.electronAPI.send('set-spec-mode-main', config.enabled && config.mode === 'spec');
-
-    // spec 모드에서도 cmd를 누르기 전까지는 selection 비활성화 (view 모드처럼 동작)
-    const isSelectionEnabled = config.enabled && config.mode === 'spec' && isCmdPressedRef.current;
-    sendToWebview('set-selection-enabled', isSelectionEnabled);
+    syncSpecModeToWebview(config);
   }, [config.enabled, config.mode, config.showHover, isWebviewReady]);
 
   // cmd 키 추적: renderer 포커스 + webview 포커스(IPC 경유) 모두 감지
@@ -149,13 +152,14 @@ const GTMAssistant: React.FC<Props> = ({ config, setConfig }) => {
 
     };
 
+    const webviewContainer = document.querySelector('.webview-container');
+
     const handleGlobalMouseDown = (e: MouseEvent) => {
       // UI 요소(팝오버, 드로어 등) 위에 있으면 guestView에 inject하지 않음
       const target = e.target as HTMLElement;
-      if (target.closest('.popover-overlay, .drawer-container, .spec-popover, .pageview-badge, .verification-overlay-content, .gtm-spec-label-container')) return;
-      const container = document.querySelector('.webview-container');
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
+      if (target.closest(INTERACTIVE_SELECTORS.filter(s => s !== '.app-header').join(', '))) return;
+      if (!webviewContainer) return;
+      const rect = webviewContainer.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) {
@@ -164,9 +168,8 @@ const GTMAssistant: React.FC<Props> = ({ config, setConfig }) => {
     };
 
     const handleWheel = (e: WheelEvent) => {
-      const container = document.querySelector('.webview-container');
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
+      if (!webviewContainer) return;
+      const rect = webviewContainer.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) {
@@ -211,15 +214,8 @@ const GTMAssistant: React.FC<Props> = ({ config, setConfig }) => {
 
     const handleDomReady = () => {
       setIsWebviewReady(true);
-      const currentConfig = configRef.current;
-
       // Resend current state on DOM ready to ensure preload has latest mode
-      const isSpecActive = currentConfig.enabled && currentConfig.mode === 'spec';
-      const isSelectionEnabled = currentConfig.enabled && currentConfig.mode === 'spec' && isCmdPressedRef.current;
-
-      sendToWebview('set-spec-mode', isSpecActive);
-      sendToWebview('set-selection-enabled', isSelectionEnabled);
-      window.electronAPI.send('set-spec-mode-main', currentConfig.enabled && currentConfig.mode === 'spec');
+      syncSpecModeToWebview(configRef.current);
     };
 
     const handleWebviewTitle = (e: any) => {
@@ -249,20 +245,16 @@ const GTMAssistant: React.FC<Props> = ({ config, setConfig }) => {
     };
   }, [isWebviewReady]);
 
-  const setMode = async (mode: 'spec' | 'verify') => {
-    const newConfig = { ...config, mode };
-    setConfig(newConfig);
-    await storage.setConfig(newConfig);
-  };
-
-  const refreshSpecs = async () => {
-    if (currentUrl) await loadSpecsForUrl(currentUrl);
-  };
-
   const updateConfig = async (updates: Partial<AppConfig>) => {
     const newConfig = { ...config, ...updates };
     setConfig(newConfig);
     await storage.setConfig(newConfig);
+  };
+
+  const setMode = async (mode: 'spec' | 'verify') => updateConfig({ mode });
+
+  const refreshSpecs = async () => {
+    if (currentUrl) await loadSpecsForUrl(currentUrl);
   };
 
   return (

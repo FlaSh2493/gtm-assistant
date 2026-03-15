@@ -1,6 +1,6 @@
 import React from 'react';
 import { useGTMAssistant } from '../GTMAssistant';
-import { Plus, Download, FileJson, Settings, X, Eye } from 'lucide-react';
+import { Download, Settings, X, Eye } from 'lucide-react';
 import { storage } from '../../utils/storage';
 import './drawer.css';
 
@@ -36,18 +36,6 @@ const SpecList: React.FC = () => {
     exportCSV(specs, defaultColumns);
   };
 
-  const handleExportGTM = () => {
-    exportGtmJson(specs);
-  };
-
-  const dummyElement: any = {
-    tagName: 'BODY',
-    rect: { top: 0, left: 0, width: 0, height: 0 },
-    selector: 'document'
-  };
-
-
-
   const handleEdit = (spec: any) => {
     // We don't have direct access to the element, but we can send the selector to the popover
     // The popover will try to get the rect from the webview if needed.
@@ -68,7 +56,7 @@ const SpecList: React.FC = () => {
           <button className="export-btn secondary" onClick={handleExportCSV}>
             <Download size={14} /> CSV
           </button>
-          <button className="export-btn gtm" onClick={handleExportGTM}>
+          <button className="export-btn gtm" onClick={() => exportGtmJson(specs)}>
            <Download size={14} /> GTM JSON
           </button>
         </div>
