@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import GTMAssistant from './GTMAssistant';
-import { storage } from '../utils/storage';
-import { AppConfig } from '../types';
+import GTMAssistant from './context/gtm-assistant';
+import { storage } from '../shared/utils/storage';
+import { AppConfig } from '../shared/types';
 import { Power, MousePointer2, Globe, ChevronLeft, ChevronRight, RotateCw, Home} from 'lucide-react';
-import HomeScreen from './HomeScreen';
-import { resolveUrl } from './utils/UrlResolver';
+import HomeScreen from './components/home-screen';
+import { resolveUrl } from './utils/url-resolver';
 import { INTERACTIVE_SELECTORS } from './utils/constants';
-import GtmLogo from './GtmLogo';
+import GtmLogo from './components/gtm-logo';
 
 const App: React.FC = () => {
   const [initialUrl, setInitialUrl] = useState<string | null>(null);

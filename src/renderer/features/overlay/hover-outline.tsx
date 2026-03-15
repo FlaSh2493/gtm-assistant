@@ -1,5 +1,5 @@
 import React from 'react';
-import { useGTMAssistant } from '../GTMAssistant';
+import { useGTMAssistant } from '../../context/gtm-assistant';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const HoverOutline: React.FC = () => {
@@ -13,8 +13,8 @@ const HoverOutline: React.FC = () => {
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ 
-          opacity: 1, 
+        animate={{
+          opacity: 1,
           scale: 1,
           boxShadow: [
             'inset 0 0 0 1.5px rgba(59, 130, 246, 0.8), 0 0 12px rgba(59, 130, 246, 0.3)',

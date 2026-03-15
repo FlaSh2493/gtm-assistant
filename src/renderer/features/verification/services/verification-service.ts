@@ -1,5 +1,5 @@
-import { EventSpec } from '../../types';
-import { GTMGA4Tag, GTMTrigger } from './GTMParser';
+import { EventSpec } from '../../../../shared/types';
+import { GTMGA4Tag, GTMTrigger } from './gtm-parser';
 
 export interface VerificationResult {
   type: 'match' | 'plan_only' | 'gtm_only';
@@ -19,7 +19,7 @@ const isUrlMatch = (pattern: string | undefined, currentUrl: string): boolean =>
     const url = new URL(currentUrl);
     const target = pattern.toLowerCase();
     return (
-      url.href.toLowerCase().includes(target) || 
+      url.href.toLowerCase().includes(target) ||
       url.pathname.toLowerCase().includes(target)
     );
   } catch (e) {
@@ -49,7 +49,7 @@ export const verifySpecs = (
   const relevantTags = currentUrl ? tags.filter(tag => {
     const gtmTriggers = tag.firingTriggerIds.map(id => triggerMap[id]).filter(Boolean);
     if (gtmTriggers.length === 0) return true; // Assume global if no triggers found (unlikely but safe)
-    
+
     return gtmTriggers.some(t => {
       if (!t.urlPattern) return true; // "All Pages" or non-URL specific
       return isUrlMatch(t.urlPattern, currentUrl);
@@ -59,7 +59,7 @@ export const verifySpecs = (
   // 3. Compare relevant Plan items
   relevantPlan.forEach(planItem => {
     const matchingTag = relevantTags.find(tag => tag.eventName === planItem.eventName);
-    
+
     if (matchingTag) {
       matchedGtmTagNames.add(matchingTag.name);
       const mismatches: string[] = [];
@@ -75,7 +75,7 @@ export const verifySpecs = (
       // Check Triggers
       const gtmTriggers = matchingTag.firingTriggerIds.map(id => triggerMap[id]).filter(Boolean);
       const selectorMatch = gtmTriggers.some(t => t.selector === planItem.selector);
-      
+
       if (planItem.selector && planItem.selector !== 'document' && !selectorMatch) {
          const actualSelector = gtmTriggers.find(t => t.selector)?.selector;
          mismatches.push(`트리거 셀렉터 불일치: 명세(${planItem.selector}) vs 실제(${actualSelector || '없음'})`);

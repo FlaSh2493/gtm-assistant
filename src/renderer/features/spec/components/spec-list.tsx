@@ -1,16 +1,18 @@
 import React from 'react';
-import { useGTMAssistant } from '../GTMAssistant';
-import { Download, Settings, X, Eye } from 'lucide-react';
-import { storage } from '../../utils/storage';
-import './drawer.css';
+import { useGTMAssistant } from '../../../context/gtm-assistant';
+import { Download, Upload, Settings, X, Eye } from 'lucide-react';
+import { storage } from '../../../../shared/utils/storage';
+import './SpecList.css';
 
-import { useCSVExport } from '../hooks/useCSVExport';
-import { useGtmExport } from '../hooks/useGtmExport';
+import { useCSVExport } from '../hooks/use-csv-export';
+import { useGtmExport } from '../hooks/use-gtm-export';
+import { useGtmImport } from '../hooks/use-gtm-import';
 
 const SpecList: React.FC = () => {
   const { specs, refreshSpecs, setSelectedElement, setEditingSpec, config, currentUrl } = useGTMAssistant();
   const { exportCSV } = useCSVExport();
   const { exportGtmJson } = useGtmExport();
+  const { importGtmJson } = useGtmImport();
 
   const currentHostname = currentUrl ? new URL(currentUrl).hostname : 'localhost';
 
@@ -20,6 +22,25 @@ const SpecList: React.FC = () => {
     if (confirm('정말 삭제하시겠습니까?')) {
       await storage.deleteSpec(currentHostname, id);
       await refreshSpecs();
+    }
+  };
+
+  const handleImportGtmJson = async () => {
+    try {
+      const imported = await importGtmJson();
+      if (imported.length === 0) {
+        alert('가져올 수 있는 이벤트가 없습니다.');
+        return;
+      }
+      if (!confirm(`${imported.length}개 이벤트를 불러옵니다. 현재 작업(${specs.length}개)을 덮어씁니다. 계속하시겠습니까?`)) return;
+
+      const key = `specs_${currentHostname}`;
+      await window.electronAPI.invoke('store:set', key, imported);
+      await refreshSpecs();
+    } catch (err: any) {
+      if (err.message !== '파일을 선택하지 않았습니다.') {
+        alert(err.message || '불러오기에 실패했습니다.');
+      }
     }
   };
 
@@ -53,6 +74,9 @@ const SpecList: React.FC = () => {
         <div className="stats">총 {specs.length}개 항목</div>
         <div className="btn-group">
 
+          <button className="export-btn secondary" onClick={handleImportGtmJson}>
+            <Upload size={14} /> 불러오기
+          </button>
           <button className="export-btn secondary" onClick={handleExportCSV}>
             <Download size={14} /> CSV
           </button>
@@ -82,7 +106,7 @@ const SpecList: React.FC = () => {
                     <button onClick={() => handleEdit(spec)} title="수정">
                       <Settings size={14} />
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDelete(spec.id)}
                       title="삭제"
                       className="delete-btn"

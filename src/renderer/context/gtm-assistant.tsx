@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { AppConfig, EventSpec } from '../types';
-import { storage } from '../utils/storage';
-import { INTERACTIVE_SELECTORS } from './utils/constants';
-import HoverOutline from './overlay/HoverOutline';
-import Drawer from './drawer/drawer';
-import Popover from './overlay/popover';
-import SpecPopover from './overlay/SpecPopover';
-import SpecOutline from './overlay/SpecOutline';
-import PageviewBadge from './overlay/PageviewBadge';
-import VerificationOverlay from './verification/VerificationOverlay';
+import { AppConfig, EventSpec } from '../../shared/types';
+import { storage } from '../../shared/utils/storage';
+import { INTERACTIVE_SELECTORS } from '../utils/constants';
+import HoverOutline from '../features/overlay/hover-outline';
+import Drawer from '../components/Drawer';
+import Popover from '../features/overlay/Popover';
+import SpecPopover from '../features/spec/components/spec-popover';
+import SpecOutline from '../features/spec/components/spec-outline';
+import PageviewBadge from '../features/overlay/pageview-badge';
+import VerificationOverlay from '../features/verification/components/verification-overlay';
 
 interface WebviewElementInfo {
   tagName: string;
@@ -135,7 +135,7 @@ const GTMAssistant: React.FC<Props> = ({ config, setConfig }) => {
 
     const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Meta') activateCmd(); };
     const handleKeyUp = (e: KeyboardEvent) => { if (e.key === 'Meta') deactivateCmd(); };
-    
+
     // Webview 내부 키 이벤트 릴레이 (Main Process -> App.tsx -> window event)
     const handleWebviewCmd = (e: any) => {
       if (e.detail?.pressed) activateCmd();
@@ -290,9 +290,9 @@ const GTMAssistant: React.FC<Props> = ({ config, setConfig }) => {
             <SpecOutline />
             <PageviewBadge />
             <VerificationOverlay />
-    
-            <Popover 
-              target={selectedElement} 
+
+            <Popover
+              target={selectedElement}
               onClose={() => setSelectedElement(null)}
             >
               <SpecPopover />

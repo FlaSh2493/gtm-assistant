@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { EventSpec } from '../../types';
+import { EventSpec } from '../../../../shared/types';
 
 interface GtmContainer {
   exportFormatVersion: number;
@@ -69,18 +69,18 @@ export const useGtmExport = () => {
         spec.triggerDescription ? `[설명] ${spec.triggerDescription}` : '',
         spec.selector ? `[GTM AST Selector] ${spec.selector}` : ''
       ].filter(Boolean).join('\n');
-      
+
       if (triggerNotes) {
         trigger.notes = triggerNotes;
       }
-      
+
       container.containerVersion.trigger.push(trigger);
 
       // 2. Variables 생성 및 Tag 연동용 파라미터 구성
       const tagParams: any[] = [
         { type: "template", key: "eventName", value: spec.eventName }
       ];
-      
+
       const eventSettingsParams: any[] = [];
 
       (spec.parameters || []).forEach((param, paramIdx) => {
@@ -154,7 +154,7 @@ export const useGtmExport = () => {
               { type: "integer", key: "dataLayerVersion", value: "2" }
             );
           }
-          
+
           container.containerVersion.variable.push(variable);
           variableMap.set(param.key, variableName);
         }
@@ -199,7 +199,7 @@ export const useGtmExport = () => {
     const jsonString = JSON.stringify(container, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.setAttribute('href', url);
     link.setAttribute('download', `gtm-recipe-${timestamp.split('T')[0]}.json`);

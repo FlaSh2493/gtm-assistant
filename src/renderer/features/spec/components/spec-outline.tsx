@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useGTMAssistant } from '../GTMAssistant';
-import { EventSpec } from '../../types';
+import { useGTMAssistant } from '../../../context/gtm-assistant';
+import { EventSpec } from '../../../../shared/types';
 import { motion } from 'framer-motion';
 import { Tag } from 'lucide-react';
 
@@ -26,7 +26,7 @@ const SpecOutline: React.FC = () => {
       const selectors = specs
         .map(s => s.selector)
         .filter(s => s && s !== 'document');
-      
+
       if (selectors.length > 0) {
         sendToWebview('get-rects', selectors);
       }
@@ -35,7 +35,7 @@ const SpecOutline: React.FC = () => {
     const handleRectsUpdate = (e: any) => {
       const rects = e.detail;
       const groupsMap = new Map<string, EventSpec[]>();
-      
+
       specs.forEach(spec => {
         if (!spec.selector || spec.selector === 'document' || !rects[spec.selector]) return;
         const list = groupsMap.get(spec.selector) || [];
@@ -47,7 +47,7 @@ const SpecOutline: React.FC = () => {
       groupsMap.forEach((specList, selector) => {
         newGroups.push({ selector, specs: specList, rect: rects[selector] });
       });
-      
+
       // Sort in descending area order so smaller elements render on top of larger ones
       newGroups.sort((a, b) => {
         const areaA = a.rect.width * a.rect.height;
@@ -100,10 +100,10 @@ const SpecOutline: React.FC = () => {
     e.stopPropagation();
     e.preventDefault();
     setEditingSpec(spec);
-    setSelectedElement({ 
-      tagName: 'ELEMENT', 
-      rect: rect as DOMRect, 
-      selector 
+    setSelectedElement({
+      tagName: 'ELEMENT',
+      rect: rect as DOMRect,
+      selector
     });
   };
 
@@ -117,7 +117,7 @@ const SpecOutline: React.FC = () => {
         // Dynamic height calculation to prevent overflow
         const estimatedHeight = isHovered ? (group.specs.length * 30 + 10) : 40;
         const isTopSpaceTight = group.rect.top < estimatedHeight;
-        
+
         // Horizontal repositioning logic
         const estimatedWidth = isHovered ? 200 : 120; // Expanded labels are wider
         const isRightSpaceTight = (group.rect.left + estimatedWidth) > window.innerWidth;
@@ -126,8 +126,8 @@ const SpecOutline: React.FC = () => {
           <motion.div
             key={group.selector}
             initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ 
-              opacity: 1, 
+            animate={{
+              opacity: 1,
               scale: 1,
               backgroundColor: isHovered ? 'rgba(234, 88, 12, 0.25)' : 'rgba(234, 88, 12, 0.05)',
             }}
@@ -179,10 +179,10 @@ const SpecOutline: React.FC = () => {
                   <Tag size={12} fill="white" />
                   {mainSpec.eventName}
                   {hasMultiple && (
-                    <span style={{ 
-                      background: 'rgba(255, 255, 255, 0.2)', 
-                      color: 'white', 
-                      padding: '1px 5px', 
+                    <span style={{
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      color: 'white',
+                      padding: '1px 5px',
                       borderRadius: '10px',
                       fontSize: '9px',
                       fontWeight: 900
@@ -192,7 +192,7 @@ const SpecOutline: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div 
+                <div
                   key="expanded"
                   style={{
                     display: 'flex',

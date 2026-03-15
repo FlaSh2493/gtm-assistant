@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle, AlertCircle, HelpCircle, Database, FileSpreadsheet, RotateCcw } from 'lucide-react';
-import { parseGTMGA4Tags, parseGTMTriggers } from './GTMParser';
-import { EXAMPLE_GTM_JSON } from './ExampleData';
-import { verifySpecs, VerificationResult } from './VerificationService';
-import { useGTMAssistant } from '../GTMAssistant';
-import { parseCSVToSpecs, parseJSONToSpecs } from '../utils/SpecParser';
+import { parseGTMGA4Tags, parseGTMTriggers } from '../services/gtm-parser';
+import { EXAMPLE_GTM_JSON } from '../services/example-data';
+import { verifySpecs, VerificationResult } from '../services/verification-service';
+import { useGTMAssistant } from '../../../context/gtm-assistant';
+import { parseCSVToSpecs, parseJSONToSpecs } from '../../../utils/spec-parser';
 
 const VerificationDrawer: React.FC = () => {
   const { specs, externalSpecs, setExternalSpecs, gtmJson, setGtmJson, currentUrl } = useGTMAssistant();
@@ -69,17 +69,17 @@ const VerificationDrawer: React.FC = () => {
 
       // Reset filter to show all so we can find the item
       setFilter(null);
-      
+
       // Let React update the list first
       setTimeout(() => {
         setExpandedId(eventName);
-        
+
         // Find element within our list container (Safe for Shadow DOM)
         const itemEl = listRef.current?.querySelector(`#v-item-${eventName}`) as HTMLElement;
         if (itemEl && listRef.current) {
           // Calculate offset relative to list container
           const targetOffset = itemEl.offsetTop - 20; // 20px padding/margin adjustment
-          
+
           listRef.current.scrollTo({
             top: targetOffset,
             behavior: 'smooth'
@@ -116,7 +116,7 @@ const VerificationDrawer: React.FC = () => {
 
   const renderSection = (title: string, status: VerificationResult['status'], icon: React.ReactNode) => {
     let filtered = results.filter(r => r.status === status);
-    
+
     // Apply status filter if active
     if (filter && filter !== status) {
         return null;
@@ -132,10 +132,10 @@ const VerificationDrawer: React.FC = () => {
         {filtered.map((res, i) => {
           const itemKey = res.eventName;
           const isExpanded = expandedId === itemKey;
-          
+
           return (
-            <div 
-              key={itemKey} 
+            <div
+              key={itemKey}
               id={`v-item-${res.eventName}`}
               className={`v-item ${res.status} ${isExpanded ? 'expanded' : ''}`}
               onClick={() => toggleExpand(itemKey)}
@@ -158,7 +158,7 @@ const VerificationDrawer: React.FC = () => {
                   <span className="page-url" title={res.selector}>{res.selector}</span>
                 )}
               </div>
-              
+
               {isExpanded && (
                 <div className="v-details" onClick={(e) => e.stopPropagation()}>
                   {res.mismatches.length > 0 ? (
@@ -195,7 +195,7 @@ const VerificationDrawer: React.FC = () => {
       <div className="v-header">
         <h3>검수 결과 리스트</h3>
         <p className="v-subtitle">설치 명세서와 GTM 구현을 비교합니다.</p>
-        
+
         <div className="v-upload-zone">
           <div className="upload-group">
             <div className={`upload-item ${externalSpecs ? 'success' : ''}`} onClick={() => specInputRef.current?.click()}>
@@ -204,12 +204,12 @@ const VerificationDrawer: React.FC = () => {
                 <span className="label">명세서 (CSV/JSON)</span>
                 <span className="file-name">{externalSpecs ? `업로드됨 (${externalSpecs.length}개)` : '파일 선택'}</span>
               </div>
-              <input 
-                type="file" 
-                ref={specInputRef} 
-                accept=".csv,.json" 
-                onChange={handleSpecUpload} 
-                style={{ display: 'none' }} 
+              <input
+                type="file"
+                ref={specInputRef}
+                accept=".csv,.json"
+                onChange={handleSpecUpload}
+                style={{ display: 'none' }}
               />
             </div>
             <div className={`upload-item ${gtmJson ? 'success' : ''}`} onClick={() => gtmInputRef.current?.click()}>
@@ -218,12 +218,12 @@ const VerificationDrawer: React.FC = () => {
                 <span className="label">GTM 컨테이너 (JSON)</span>
                 <span className="file-name">{gtmJson ? '업로드됨' : '파일 선택'}</span>
               </div>
-              <input 
-                type="file" 
-                ref={gtmInputRef} 
-                accept=".json" 
-                onChange={handleGTMUpload} 
-                style={{ display: 'none' }} 
+              <input
+                type="file"
+                ref={gtmInputRef}
+                accept=".json"
+                onChange={handleGTMUpload}
+                style={{ display: 'none' }}
               />
             </div>
             {(externalSpecs || gtmJson) && (
@@ -233,14 +233,14 @@ const VerificationDrawer: React.FC = () => {
             )}
           </div>
         </div>
-        
+
         <div className="v-filter-bar">
           {filterConfigs.map(cfg => {
             const count = results.filter(r => r.status === cfg.status).length;
             if (count === 0 && !filter) return null;
-            
+
             return (
-              <button 
+              <button
                 key={cfg.status}
                 className={`v-filter-chip ${cfg.status} ${filter === cfg.status ? 'active' : ''}`}
                 onClick={() => toggleFilter(cfg.status)}
@@ -258,7 +258,7 @@ const VerificationDrawer: React.FC = () => {
         {renderSection('기획대로 구현됨 (일치)', 'match', <CheckCircle size={16} color="#10b981" />)}
         {renderSection('수정이 필요한 태그 (조치 필요)', 'issue', <AlertCircle size={16} color="#ef4444" />)}
         {renderSection('GTM에는 있으나 명세에는 없음 (명세 외)', 'unspec', <HelpCircle size={16} color="#64748b" />)}
-        
+
         {filter && results.filter(r => r.status === filter).length === 0 && (
            <div className="v-empty-filter">
              선택한 필터에 해당하는 결과가 없습니다.

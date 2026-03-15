@@ -1,11 +1,11 @@
 import React from 'react';
-import { useGTMAssistant } from '../GTMAssistant';
+import { useGTMAssistant } from '../../context/gtm-assistant';
 import { FileText } from 'lucide-react';
-import './overlay.css';
+import './PageviewBadge.css';
 
 const PageviewBadge: React.FC = () => {
   const { specs, currentUrl } = useGTMAssistant();
-  
+
   if (!currentUrl || currentUrl === 'about:blank') return null;
 
 
@@ -17,8 +17,8 @@ const PageviewBadge: React.FC = () => {
     return null;
   }
 
-  const pageSpecs = specs.filter(s => 
-    s.eventType === 'page' && 
+  const pageSpecs = specs.filter(s =>
+    s.eventType === 'page' &&
     (s.pageUrl === currentUrl || s.pageUrl === originPath)
   );
 

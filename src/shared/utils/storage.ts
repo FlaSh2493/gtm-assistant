@@ -1,4 +1,4 @@
-/// <reference path="../renderer/electron.d.ts" />
+/// <reference path="../../renderer/electron.d.ts" />
 import { AppConfig, EventSpec } from '../types';
 
 
@@ -34,13 +34,13 @@ export const storage = {
   saveSpec: async (hostname: string, spec: EventSpec): Promise<void> => {
     const specs = await storage.getSpecs(hostname);
     const existingIndex = specs.findIndex(s => s.id === spec.id);
-    
+
     if (existingIndex > -1) {
       specs[existingIndex] = spec;
     } else {
       specs.push(spec);
     }
-    
+
     const key = getStorageKey(hostname);
     await window.electronAPI.invoke('store:set', key, specs);
   },

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useGTMAssistant } from '../GTMAssistant';
-import { EventParameter, EventSpec } from '../../types';
-import { storage } from '../../utils/storage';
+import { useGTMAssistant } from '../../../context/gtm-assistant';
+import { EventParameter, EventSpec } from '../../../../shared/types';
+import { storage } from '../../../../shared/utils/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { X, Plus, Trash2, Sparkles, Copy, Check } from 'lucide-react';
 
@@ -42,19 +42,19 @@ const SpecPopover: React.FC = () => {
       if (editingSpec) {
         setForm(editingSpec);
         setActiveSpecId(editingSpec.id);
-        
+
         // Find other specs for the same selector
         if (editingSpec.selector && editingSpec.selector !== 'document') {
           const related = specs.filter(s => s.selector === editingSpec.selector);
           // Sort by creation date to keep tab order consistent (#1, #2, #3...)
-          const sorted = [...related].sort((a, b) => 
+          const sorted = [...related].sort((a, b) =>
             new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
           );
           setRelatedSpecs(sorted);
         } else if (editingSpec.selector === 'document') {
            // For page events, show all page events for this specific URL
            const related = specs.filter(s => s.eventType === 'page' && s.pageUrl === editingSpec.pageUrl);
-           const sorted = [...related].sort((a, b) => 
+           const sorted = [...related].sort((a, b) =>
              new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
            );
            setRelatedSpecs(sorted);
@@ -62,14 +62,14 @@ const SpecPopover: React.FC = () => {
       } else if (selectedElement) {
         // Since we can't directly use selector logic here, we'd ideally have it in preload
         // OR we send a message to webview to generate it for us.
-        // For now, let's assume 'selector' might be in selectedElement if pre-calculated, 
+        // For now, let's assume 'selector' might be in selectedElement if pre-calculated,
         // or we just use a placeholder.
         const currentUrlVal = currentUrl || '';
         const selector = selectedElement.selector || 'pending...';
-        
+
         // Check for existing specs on this selector
         const existing = specs.filter(s => s.selector === selector);
-        
+
         if (existing.length > 0) {
           setRelatedSpecs(existing);
           setForm(existing[0]);
@@ -77,7 +77,7 @@ const SpecPopover: React.FC = () => {
         } else {
           setRelatedSpecs([]);
           setActiveSpecId(null);
-          setForm({ 
+          setForm({
             eventType: 'element',
             selector,
             pageUrl: currentUrlVal,
@@ -178,8 +178,8 @@ const SpecPopover: React.FC = () => {
             {relatedSpecs.length > 0 && form.selector !== 'document' && (
                 <div className="multi-event-tabs">
                     {relatedSpecs.map((s, idx) => (
-                        <button 
-                            key={s.id} 
+                        <button
+                            key={s.id}
                             className={`event-tab ${activeSpecId === s.id ? 'active' : ''}`}
                             onClick={() => handleSwitchSpec(s.id)}
                         >
@@ -198,23 +198,23 @@ const SpecPopover: React.FC = () => {
         </div>
         <button className="close-btn" onClick={handleClose}><X size={18} /></button>
       </div>
-      
+
       <div className="popover-body">
         <div className="form-info-tip">
           🎯 모든 이벤트는 <strong>맞춤 이벤트(Custom Event)</strong>로 생성됩니다.
         </div>
-        
+
         <div className="form-group">
           <label>페이지 URL</label>
           <div className="input-with-action">
-            <input 
-              type="text" 
-              value={form.pageUrl} 
+            <input
+              type="text"
+              value={form.pageUrl}
               onChange={e => setForm(prev => ({ ...prev, pageUrl: e.target.value }))}
                           />
-            <button 
-              type="button" 
-              className="action-icon-btn" 
+            <button
+              type="button"
+              className="action-icon-btn"
               onClick={handleCopyUrl}
               title="URL 복사"
             >
@@ -222,34 +222,34 @@ const SpecPopover: React.FC = () => {
             </button>
           </div>
         </div>
-        
+
         <div className="form-row">
             <div className="form-group">
                 <label>이벤트 ID</label>
-                <input 
-                    type="text" 
+                <input
+                    type="text"
                     placeholder="EVT-001"
-                    value={form.eventId} 
+                    value={form.eventId}
                     onChange={e => setForm(prev => ({ ...prev, eventId: e.target.value }))}
                                     />
             </div>
             <div className="form-group">
                 <label>GA4 이벤트명</label>
-                <input 
-                    type="text" 
+                <input
+                    type="text"
                     placeholder="click_button"
-                    value={form.eventName} 
+                    value={form.eventName}
                     onChange={e => setForm(prev => ({ ...prev, eventName: e.target.value }))}
                                     />
             </div>
         </div>
-        
+
         <div className="form-group">
           <label>태그 설명</label>
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder={form.eventType === 'page' ? '페이지 로드 시' : '상품 상세 페이지 혹은 버튼 클릭 시'}
-            value={form.triggerDescription || ''} 
+            value={form.triggerDescription || ''}
             onChange={e => setForm(prev => ({ ...prev, triggerDescription: e.target.value }))}
                       />
         </div>
@@ -282,8 +282,8 @@ const SpecPopover: React.FC = () => {
                 <div className="recommend-list">
                   {selectedElement?.recommendations && selectedElement.recommendations.length > 0 ? (
                     selectedElement.recommendations.map((rec, i) => (
-                      <button 
-                        key={i} 
+                      <button
+                        key={i}
                         type="button"
                         className={`recommend-btn ${form.selector === rec ? 'active' : ''}`}
                         onClick={() => {

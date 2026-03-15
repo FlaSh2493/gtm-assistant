@@ -1,18 +1,18 @@
 import React from 'react';
-import { useGTMAssistant } from '../GTMAssistant';
+import { useGTMAssistant } from '../context/gtm-assistant';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import SpecList from './SpecList';
-import VerificationDrawer from '../verification/VerificationDrawer';
+import SpecList from '../features/spec/components/spec-list';
+import VerificationDrawer from '../features/verification/components/verification-drawer';
 
 const Drawer: React.FC = () => {
   const { config, setMode, currentUrl, currentTitle, isDrawerOpen, setIsDrawerOpen } = useGTMAssistant();
-  
+
   const pageInfo = { title: currentTitle || 'Loading...', url: currentUrl || '' };
 
 
   return (
-    <div 
+    <div
       className="drawer-container"
       onMouseOver={(e) => {
         e.stopPropagation();
@@ -62,7 +62,7 @@ const Drawer: React.FC = () => {
             🏷
           </motion.button>
         ) : (
-          <motion.div 
+          <motion.div
             key="panel"
             className="drawer-panel"
             initial={{ x: 400 }}
@@ -92,8 +92,8 @@ const Drawer: React.FC = () => {
               </div>
 
               <div className="mode-tabs">
-                <button 
-                  className={config.mode === 'spec' ? 'active' : ''} 
+                <button
+                  className={config.mode === 'spec' ? 'active' : ''}
                   onClick={() => setMode('spec')}
                 >
                   명세 작성
@@ -105,7 +105,7 @@ const Drawer: React.FC = () => {
                   GTM 검수
                 </button> */}
               </div>
-              
+
               <div className="page-info-panel">
                 <div className="info-row">
                   <span className="info-label">Title</span>

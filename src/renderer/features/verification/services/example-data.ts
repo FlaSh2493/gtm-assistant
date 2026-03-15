@@ -1,4 +1,4 @@
-import { EventSpec } from '../../types';
+import { EventSpec } from '../../../../shared/types';
 
 // 기획된 CSV 명세 (Plan)
 export const EXAMPLE_CSV_PLAN: Partial<EventSpec>[] = [
@@ -56,9 +56,9 @@ export const EXAMPLE_GTM_JSON = {
         "type": "gaawc",
         "parameter": [
           { "type": "template", "key": "eventName", "value": "match_event" },
-          { 
-            "type": "list", 
-            "key": "eventParameters", 
+          {
+            "type": "list",
+            "key": "eventParameters",
             "list": [
               { "type": "map", "map": [ { "key": "name", "value": "id" }, { "key": "value", "value": "123" } ] }
             ]
@@ -71,9 +71,9 @@ export const EXAMPLE_GTM_JSON = {
         "type": "gaawc",
         "parameter": [
           { "type": "template", "key": "eventName", "value": "mismatch_event" },
-          { 
-            "type": "list", 
-            "key": "eventParameters", 
+          {
+            "type": "list",
+            "key": "eventParameters",
             "list": [
               { "type": "map", "map": [ { "key": "name", "value": "category" }, { "key": "value", "value": "test" } ] }
               // label 파라미터 누락 유도
@@ -95,9 +95,9 @@ export const EXAMPLE_GTM_JSON = {
         "type": "gaawc",
         "parameter": [
           { "type": "template", "key": "eventName", "value": "double_stacked_event" },
-          { 
-            "type": "list", 
-            "key": "eventParameters", 
+          {
+            "type": "list",
+            "key": "eventParameters",
             "list": [
               { "type": "map", "map": [ { "key": "name", "value": "type" }, { "key": "value", "value": "stacked" } ] }
             ]

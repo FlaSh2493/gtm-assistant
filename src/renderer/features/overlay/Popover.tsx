@@ -42,7 +42,7 @@ const Popover: React.FC<PopoverProps> = ({ target, onClose, children }) => {
     if (left + popoverWidth > window.innerWidth - 450) {
       left = Math.max(10, rect.left - popoverWidth + rect.width);
     }
-    
+
     if (top < 10) top = 10;
     if (left < 10) left = 10;
 
@@ -53,7 +53,7 @@ const Popover: React.FC<PopoverProps> = ({ target, onClose, children }) => {
 
   return (
     <AnimatePresence>
-      <div 
+      <div
         className="popover-overlay"
         style={{
           position: 'absolute',

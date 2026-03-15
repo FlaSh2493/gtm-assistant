@@ -1,4 +1,4 @@
-import { EventSpec } from '../../types';
+import { EventSpec } from '../../shared/types';
 
 /**
  * Parses a CSV string into an array of EventSpec objects.

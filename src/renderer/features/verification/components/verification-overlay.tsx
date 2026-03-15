@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, AlertCircle, HelpCircle } from 'lucide-react';
-import { parseGTMGA4Tags, parseGTMTriggers } from './GTMParser';
-import { verifySpecs, VerificationResult } from './VerificationService';
-import { useGTMAssistant } from '../GTMAssistant';
-import { EXAMPLE_GTM_JSON } from './ExampleData';
-import './verification.css';
+import { parseGTMGA4Tags, parseGTMTriggers } from '../services/gtm-parser';
+import { verifySpecs, VerificationResult } from '../services/verification-service';
+import { useGTMAssistant } from '../../../context/gtm-assistant';
+import { EXAMPLE_GTM_JSON } from '../services/example-data';
+import './VerificationOverlay.css';
 
 const VerificationOverlay: React.FC = () => {
   const { config, isWebviewReady, specs, externalSpecs, gtmJson, currentUrl, setIsDrawerOpen, sendToWebview } = useGTMAssistant();
@@ -32,7 +32,7 @@ const VerificationOverlay: React.FC = () => {
       const selectors = results
         .map(r => r.selector)
         .filter(s => s && s !== 'document');
-      
+
       if (selectors.length > 0 && isWebviewReady) {
         sendToWebview('get-rects', selectors);
       }
@@ -48,7 +48,7 @@ const VerificationOverlay: React.FC = () => {
 
     window.addEventListener('rects-update', handleRectsUpdate);
     window.addEventListener('webview-scrolling', handleWebviewScroll);
-    
+
     const interval = setInterval(requestRects, 1000);
     requestRects();
 
@@ -100,13 +100,13 @@ const VerificationOverlay: React.FC = () => {
       {Object.entries(groupedResults).map(([selector, groupResults]) => {
         const rect = elementRects[selector];
         if (!rect) return null;
-        
+
         const isHovered = hoveredSelector === selector;
-        const worstResult = groupResults.reduce((prev, curr) => 
-          getStatusPriority(curr.status) > getStatusPriority(prev.status) ? curr : prev, 
+        const worstResult = groupResults.reduce((prev, curr) =>
+          getStatusPriority(curr.status) > getStatusPriority(prev.status) ? curr : prev,
           groupResults[0]
         );
-        
+
         const worstResultStyle = getStatusStyle(worstResult.status);
         const borderColor = worstResultStyle.color;
         const hasMultiple = groupResults.length > 1;
@@ -115,11 +115,11 @@ const VerificationOverlay: React.FC = () => {
         const isTopSpaceTight = rect.top < estimatedHeight;
 
         // Horizontal repositioning logic
-        const estimatedWidth = isHovered ? 120 : 50; 
+        const estimatedWidth = isHovered ? 120 : 50;
         const isRightSpaceTight = (rect.left + estimatedWidth) > window.innerWidth;
 
         return (
-          <motion.div 
+          <motion.div
             key={selector}
             className={`v-overlay-rect ${worstResult.status}`}
             initial={{ opacity: 0, scale: 0.95 }}
@@ -132,8 +132,8 @@ const VerificationOverlay: React.FC = () => {
             onClick={(e) => {
               e.stopPropagation();
               setIsDrawerOpen(true);
-              window.dispatchEvent(new CustomEvent('gtm-assistant-focus-result', { 
-                detail: { eventName: worstResult.eventName, status: worstResult.status } 
+              window.dispatchEvent(new CustomEvent('gtm-assistant-focus-result', {
+                detail: { eventName: worstResult.eventName, status: worstResult.status }
               }));
             }}
             onMouseEnter={() => setHoveredSelector(selector)}
@@ -154,7 +154,7 @@ const VerificationOverlay: React.FC = () => {
               boxSizing: 'border-box'
             }}
           >
-            <div 
+            <div
               className={`v-label-container ${isHovered ? 'expanded' : ''} ${isRightSpaceTight ? 'right-aligned' : ''}`}
               style={{
                 position: 'absolute',
@@ -182,8 +182,8 @@ const VerificationOverlay: React.FC = () => {
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsDrawerOpen(true);
-                    window.dispatchEvent(new CustomEvent('gtm-assistant-focus-result', { 
-                      detail: { eventName: worstResult.eventName, status: worstResult.status } 
+                    window.dispatchEvent(new CustomEvent('gtm-assistant-focus-result', {
+                      detail: { eventName: worstResult.eventName, status: worstResult.status }
                     }));
                   }}
                   style={{
@@ -202,13 +202,13 @@ const VerificationOverlay: React.FC = () => {
                 >
                   {getStatusIcon(worstResult.status, 16)}
                   {hasMultiple && (
-                    <span style={{ 
+                    <span style={{
                       position: 'absolute',
                       top: '-4px',
                       right: '-4px',
-                      background: '#111827', 
-                      color: 'white', 
-                      padding: '2px 4px', 
+                      background: '#111827',
+                      color: 'white',
+                      padding: '2px 4px',
                       borderRadius: '10px',
                       fontSize: '9px',
                       fontWeight: 900,
@@ -223,10 +223,10 @@ const VerificationOverlay: React.FC = () => {
                 groupResults.map((res, i) => {
                   const style = getStatusStyle(res.status);
                   return (
-                    <div 
+                    <div
                       key={i}
                       className="v-error-tooltip expanded"
-                      style={{ 
+                      style={{
                         borderRadius: '50%',
                         padding: '6px',
                         display: 'flex',
@@ -242,8 +242,8 @@ const VerificationOverlay: React.FC = () => {
                       onClick={(e) => {
                         e.stopPropagation();
                         setIsDrawerOpen(true);
-                        window.dispatchEvent(new CustomEvent('gtm-assistant-focus-result', { 
-                          detail: { eventName: res.eventName, status: res.status } 
+                        window.dispatchEvent(new CustomEvent('gtm-assistant-focus-result', {
+                          detail: { eventName: res.eventName, status: res.status }
                         }));
                       }}
                       title={res.eventName}

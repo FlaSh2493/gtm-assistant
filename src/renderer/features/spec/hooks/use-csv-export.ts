@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { EventSpec, CSVColumn } from '../../types';
+import { EventSpec, CSVColumn } from '../../../../shared/types';
 
 export const useCSVExport = () => {
   const exportCSV = useCallback((specs: EventSpec[], columns: CSVColumn[]) => {
@@ -24,7 +24,7 @@ export const useCSVExport = () => {
       enabledColumns.flatMap(col => {
         if (col.field === 'parameters') {
           const params = spec.parameters || [];
-          const paddedParams = Array.from({ length: maxParams }, (_, i) => 
+          const paddedParams = Array.from({ length: maxParams }, (_, i) =>
             params[i] ? [params[i].key, params[i].description || ''] : ['', '']
           ).flat();
           return paddedParams;
@@ -41,7 +41,7 @@ export const useCSVExport = () => {
 
     const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.setAttribute('href', url);
     link.setAttribute('download', `gtm-spec-${window.location.hostname}-${Date.now()}.csv`);

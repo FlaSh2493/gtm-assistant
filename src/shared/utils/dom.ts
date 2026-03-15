@@ -29,29 +29,29 @@ export function isElementVisible(el: HTMLElement): boolean {
   while (parent && parent !== document.body) {
     const parentStyle = window.getComputedStyle(parent);
     const overflow = parentStyle.overflow + parentStyle.overflowX + parentStyle.overflowY;
-    
+
     if (overflow.includes('hidden') || overflow.includes('auto') || overflow.includes('scroll')) {
       const parentRect = parent.getBoundingClientRect();
-      
+
       // 요소가 부모의 경계 밖으로 완전히 나갔는지 확인
-      const isClipped = 
+      const isClipped =
         rect.bottom <= parentRect.top ||
         rect.top >= parentRect.bottom ||
         rect.right <= parentRect.left ||
         rect.left >= parentRect.right;
-        
+
       if (isClipped) return false;
     }
-    
+
     if (parentStyle.display === 'none' || parentStyle.visibility === 'hidden') {
       return false;
     }
-    
+
     parent = parent.parentElement;
   }
 
   // 5. 뷰포트(Viewport) 영역 내 존재 여부 확인
-  const isOutsideViewport = 
+  const isOutsideViewport =
     rect.bottom <= 0 ||
     rect.top >= window.innerHeight ||
     rect.right <= 0 ||

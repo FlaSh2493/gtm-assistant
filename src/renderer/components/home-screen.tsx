@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Globe, ArrowRight, Shield, Layout, ExternalLink } from 'lucide-react';
-import GtmLogo from './GtmLogo';
+import GtmLogo from './gtm-logo';
 
 interface HomeScreenProps {
   url: string;
@@ -29,30 +29,30 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, onNavigate })
         <div className="blob blob-2"></div>
         <div className="blob blob-3"></div>
       </div>
-      
-      <motion.div 
+
+      <motion.div
         className="home-content"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <motion.div 
+        <motion.div
           className="home-logo"
           animate={{ rotate: [0, 5, -5, 0] }}
           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         >
           <GtmLogo size={80} />
         </motion.div>
-        
-        <motion.h1 
+
+        <motion.h1
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
           GTM GA Assistant
         </motion.h1>
-        
-        <motion.p 
+
+        <motion.p
           className="home-subtitle"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -62,7 +62,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, onNavigate })
           전문적으로 검수하고 관리하세요.
         </motion.p>
 
-        <motion.form 
+        <motion.form
           className="home-search-box"
           onSubmit={handleSubmit}
           initial={{ opacity: 0, scale: 0.95 }}
@@ -71,8 +71,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, onNavigate })
         >
           <div className="search-input-wrapper">
             <Globe className="search-icon" size={20} />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="검수할 사이트 URL을 입력하세요"
               value={url}
               onChange={(e) => onUrlChange(e.target.value)}
@@ -85,7 +85,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, onNavigate })
         </motion.form>
 
         <div className="home-secondary-actions">
-          <motion.div 
+          <motion.div
             className="quick-links"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -103,7 +103,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, onNavigate })
           </motion.div>
         </div>
       </motion.div>
-      
+
       <div className="home-footer">
         © 2026 GTM GA Assistant. All rights reserved.
       </div>

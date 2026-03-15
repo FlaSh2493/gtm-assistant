@@ -15,13 +15,13 @@ export interface GTMTrigger {
 
 export const parseGTMGA4Tags = (gtmJson: any): GTMGA4Tag[] => {
   const tags = gtmJson.containerVersion?.tag || [];
-  
+
   return tags
     .filter((tag: any) => tag.type === 'gaawc')
     .map((tag: any) => {
       const eventNameParam = tag.parameter?.find((p: any) => p.key === 'eventName');
       const paramsList = tag.parameter?.find((p: any) => p.key === 'eventParameters')?.list || [];
-      
+
       const parameters = paramsList.map((p: any) => {
         const map = p.map || [];
         const key = map.find((m: any) => m.key === 'name')?.value;
@@ -50,7 +50,7 @@ export const parseGTMTriggers = (gtmJson: any): Record<string, GTMTrigger> => {
     t.filter?.forEach((f: any) => {
       const arg0 = f.parameter?.find((p: any) => p.key === 'arg0')?.value;
       const arg1 = f.parameter?.find((p: any) => p.key === 'arg1')?.value;
-      
+
       if (arg0 === '{{Click Element}}' || arg0 === '{{Page URL}}') {
         if (arg0.includes('Element')) selector = arg1;
         if (arg0.includes('URL')) urlPattern = arg1;
