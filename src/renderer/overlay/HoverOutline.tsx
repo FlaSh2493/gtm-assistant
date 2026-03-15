@@ -38,14 +38,10 @@ const HoverOutline: React.FC = () => {
           left: Number(rect.left),
           width: Number(rect.width),
           height: Number(rect.height),
-          border: 'none',
-          boxShadow: 'none', // Overridden by motion animate
           borderRadius: '8px',
           pointerEvents: 'none',
           zIndex: 9998,
           boxSizing: 'border-box',
-          backdropFilter: 'none',
-          backgroundColor: 'transparent', // Ensure it's transparent
         }}
       />
     </AnimatePresence>

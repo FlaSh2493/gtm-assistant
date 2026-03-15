@@ -26,10 +26,7 @@ const ensureSelectionStyle = (enabled: boolean) => {
       styleEl = document.createElement('style');
       styleEl.id = 'gtm-assistant-selection-style';
       // Force pointer-events and change cursor for better feedback
-      styleEl.textContent = `
-        * { pointer-events: auto !important; }
-        body, html { cursor: crosshair !important; }
-      `;
+      styleEl.textContent = `* { pointer-events: auto !important; }`;
       document.head.appendChild(styleEl);
     }
   } else {
@@ -37,110 +34,62 @@ const ensureSelectionStyle = (enabled: boolean) => {
   }
 };
 
-const ensureSelectionShield = (enabled: boolean) => {
-  let shield = document.getElementById('gtm-selection-shield');
-  if (enabled) {
-    if (!shield) {
-      shield = document.createElement('div');
-      shield.id = 'gtm-selection-shield';
-      Object.assign(shield.style, {
-        position: 'fixed',
-        inset: '0',
-        zIndex: '2147483647',
-        cursor: 'crosshair',
-        background: 'transparent',
-        pointerEvents: 'auto',
-        display: 'block',
-        border: 'none',
-        margin: '0',
-        padding: '0'
-      });
-      
-      const parent = document.body || document.documentElement;
-      parent.appendChild(shield);
-      
-      shield.addEventListener('pointermove', (e) => {
-        if (!selectionEnabled) return;
-
-        // CMD(Meta)를 누르고 있을 때만 호버 발동
-        if (!e.metaKey) {
-          if (lastHoveredElement) {
-            lastHoveredElement = null;
-            ipcRenderer.sendToHost('webview-hover', null);
-          }
-          return;
-        }
-
-        if (rafId) return;
-        rafId = requestAnimationFrame(() => {
-          rafId = null;
-          const elements = document.elementsFromPoint(e.clientX, e.clientY);
-          const target = elements.find(el => el.id !== 'gtm-selection-shield' && el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT') as HTMLElement;
-
-          if (target && target !== document.documentElement && target !== document.body) {
-            if (target !== lastHoveredElement) {
-              lastHoveredElement = target;
-              handleHover(target, false);
-
-              if (hoverDebounceTimeout) clearTimeout(hoverDebounceTimeout);
-              hoverDebounceTimeout = setTimeout(() => {
-                if (lastHoveredElement === target) {
-                  handleHover(target, true);
-                }
-              }, 150);
-            }
-          } else {
-            if (lastHoveredElement) {
-              lastHoveredElement = null;
-              ipcRenderer.sendToHost('webview-hover', null);
-            }
-          }
-        });
-      });
-
-      shield.addEventListener('pointerdown', (e) => {
-        if (!selectionEnabled || !e.metaKey) return;
-        const elements = document.elementsFromPoint(e.clientX, e.clientY);
-        const rawTarget = elements.find(el => el.id !== 'gtm-selection-shield' && el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT');
-        const target = (rawTarget as HTMLElement)?.closest('a, button, input, select, textarea') || rawTarget;
-        if (target && target !== document.documentElement && target !== document.body) {
-          handleClick(target as HTMLElement);
-        }
-      });
-    } else {
-      shield.style.display = 'block';
-    }
-  } else {
-    if (shield) shield.style.display = 'none';
-  }
-};
-
 ipcRenderer.on('set-selection-enabled', (_event, enabled: boolean) => {
   selectionEnabled = enabled;
   ensureSelectionStyle(enabled);
-  ensureSelectionShield(enabled);
 });
 
-const getIframeOffset = () => {
-  let offsetX = 0;
-  let offsetY = 0;
-  try {
-    let curr: any = window;
-    while (curr !== window.top) {
-      if (curr.frameElement) {
-        const rect = curr.frameElement.getBoundingClientRect();
-        offsetX += rect.left;
-        offsetY += rect.top;
-        curr = curr.parent;
-      } else {
-        // Cross-origin boundary - cannot go further up
+// --- Cross-origin Iframe Offset Calculation ---
+let iframeOffsetX = 0;
+let iframeOffsetY = 0;
+
+if (!isTopFrame) {
+  // 1. Send request to top frame
+  window.top?.postMessage({ type: 'GTM_ASSISTANT_GET_OFFSET' }, '*');
+  
+  // 2. Listen for response from parent frames
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'GTM_ASSISTANT_OFFSET_RESPONSE') {
+      iframeOffsetX = e.data.x;
+      iframeOffsetY = e.data.y;
+    }
+  });
+}
+
+// 3. Top frame (or parent) listens for request and calculates
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'GTM_ASSISTANT_GET_OFFSET') {
+    // Find which iframe sent the message
+    const iframes = document.querySelectorAll('iframe');
+    let senderIframe: HTMLIFrameElement | null = null;
+    
+    for (const iframe of Array.from(iframes)) {
+      if (iframe.contentWindow === e.source) {
+        senderIframe = iframe;
         break;
       }
     }
-  } catch (e) {
-    // Cross-origin or other restriction
+
+    if (senderIframe) {
+      const rect = senderIframe.getBoundingClientRect();
+      const parentOffsetX = isTopFrame ? 0 : iframeOffsetX;
+      const parentOffsetY = isTopFrame ? 0 : iframeOffsetY;
+      
+      const totalX = rect.left + parentOffsetX;
+      const totalY = rect.top + parentOffsetY;
+
+      // Send the absolute offset back to that specific iframe
+      senderIframe.contentWindow?.postMessage({
+        type: 'GTM_ASSISTANT_OFFSET_RESPONSE',
+        x: totalX,
+        y: totalY
+      }, '*');
+    }
   }
-  return { x: offsetX, y: offsetY };
+});
+
+const getIframeOffset = () => {
+  return { x: iframeOffsetX, y: iframeOffsetY };
 };
 
 const isUnique = (selector: string): boolean => {
@@ -158,16 +107,13 @@ const getSelectorRecommendations = (element: HTMLElement): string[] => {
 
   // 1. ID
   if (element.id) {
-    // Try both #id and [id="..."]
     const idSelector = `#${escape(element.id)}`;
     if (isUnique(idSelector)) recommendations.push(idSelector);
-    
-    // Some IDs might start with numbers or have dots, [id="..."] is very stable
     const idAttrSelector = `[id="${element.id.replace(/"/g, '\\"')}"]`;
     if (isUnique(idAttrSelector)) recommendations.push(idAttrSelector);
   }
 
-  // 2. Data Attributes (Priority for analytics/test tags)
+  // 2. Data Attributes
   const dataAttrs = ['data-testid', 'data-cy', 'data-action', 'data-analytics', 'data-id', 'data-name', 'data-gtm-id'];
   for (const attr of dataAttrs) {
     const val = element.getAttribute(attr);
@@ -180,15 +126,12 @@ const getSelectorRecommendations = (element: HTMLElement): string[] => {
   // 3. Classes
   if (element.className && typeof element.className === 'string') {
     const classes = element.className.split(/\s+/).filter(c => c && !c.includes(':') && !/^[0-9]/.test(c));
-    
     for (const cls of classes) {
       const classSelector = `.${escape(cls)}`;
       if (isUnique(classSelector)) recommendations.push(classSelector);
-      
       const tagClass = `${tagName}.${escape(cls)}`;
       if (isUnique(tagClass)) recommendations.push(tagClass);
     }
-    
     if (classes.length >= 2) {
       const combined = `.${classes.slice(0, 2).map(escape).join('.')}`;
       if (isUnique(combined)) recommendations.push(combined);
@@ -197,17 +140,13 @@ const getSelectorRecommendations = (element: HTMLElement): string[] => {
 
   // 4. Hierarchical Fallback
   const fallback = getSelector(element);
-  if (fallback) {
-    recommendations.push(fallback);
-  }
+  if (fallback) recommendations.push(fallback);
 
   return [...new Set(recommendations)].slice(0, 6);
 };
 
 const getSelector = (element: HTMLElement): string => {
-  // Simplistic selector generator for fallback
   if (element.id && !/^\d/.test(element.id)) return `#${element.id}`;
-  
   const dataAttrs = ['data-testid', 'data-cy', 'data-action'];
   for (const attr of dataAttrs) {
     const val = element.getAttribute(attr);
@@ -236,7 +175,7 @@ const handleHover = (target: HTMLElement, includeRecommendations: boolean = true
   const offset = getIframeOffset();
   const rect = target.getBoundingClientRect();
   
-  ipcRenderer.sendToHost('webview-hover', {
+  ipcRenderer.send('webview-ipc-relay', 'webview-hover', {
     tagName: target.tagName,
     className: target.className,
     id: target.id,
@@ -258,30 +197,11 @@ const handleHover = (target: HTMLElement, includeRecommendations: boolean = true
   });
 };
 
-document.addEventListener('mouseover', (e) => {
-  if (selectionEnabled) return; // Handled by shield
-  if (specModeActive) return; // spec 모드에서는 shield가 cmd+hover를 처리
-  const target = e.target as HTMLElement;
-  if (!target) return;
-  handleHover(target);
-});
-
-// 마우스 이벤트 차단 (mousedown, mouseup)
-const blockEventInSpecMode = (e: MouseEvent) => {
-  // Alt, Cmd(Meta), Ctrl 키를 누르고 클릭하면 무조건 허용 (강제 내비게이션용)
-  if (e.altKey || e.metaKey || e.ctrlKey) return;
-  
-  if (specModeActive && selectionEnabled) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-};
-
 const handleClick = (target: HTMLElement) => {
   const offset = getIframeOffset();
   const rect = target.getBoundingClientRect();
 
-  ipcRenderer.sendToHost('webview-click', {
+  ipcRenderer.send('webview-ipc-relay', 'webview-click', {
     tagName: target.tagName,
     rect: {
       top: rect.top + offset.y,
@@ -294,51 +214,76 @@ const handleClick = (target: HTMLElement) => {
       y: rect.y + offset.y
     },
     outerHTML: target.outerHTML.substring(0, 1000),
-    selector: getSelector(target as HTMLElement),
-    recommendations: getSelectorRecommendations(target as HTMLElement),
+    selector: getSelector(target),
+    recommendations: getSelectorRecommendations(target),
     isSubframe: !isTopFrame,
     frameUrl: window.location.href
   });
 };
 
+// --- Event Listeners (Capturing Phase) ---
+
+document.addEventListener('pointermove', (e) => {
+  // selectionEnabled는 set-selection-enabled IPC로만 관리 (e.metaKey로 변경 금지 - 루프 방지)
+  if (!selectionEnabled) {
+    if (!specModeActive && e.target) {
+      handleHover(e.target as HTMLElement);
+    }
+    return;
+  }
+
+  if (rafId) return;
+  rafId = requestAnimationFrame(() => {
+    rafId = null;
+    const elements = document.elementsFromPoint(e.clientX, e.clientY);
+    const rawTarget = elements.find(el => el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT') as HTMLElement | undefined;
+    const target = (rawTarget?.closest('a, button, input, select, textarea, [role="button"]') as HTMLElement) || rawTarget as HTMLElement;
+
+    if (target && target !== document.documentElement && target !== document.body) {
+      if (target !== lastHoveredElement) {
+        lastHoveredElement = target;
+        handleHover(target, false);
+
+        if (hoverDebounceTimeout) clearTimeout(hoverDebounceTimeout);
+        hoverDebounceTimeout = setTimeout(() => {
+          if (lastHoveredElement === target) {
+            handleHover(target, true);
+          }
+        }, 150);
+      }
+    } else {
+      if (lastHoveredElement) {
+        lastHoveredElement = null;
+        ipcRenderer.send('webview-ipc-relay', 'webview-hover', null);
+      }
+    }
+  });
+}, true);
+
+const blockEventInSpecMode = (e: Event) => {
+  if (specModeActive && selectionEnabled) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
+};
+
 document.addEventListener('pointerdown', (e) => {
-  if (selectionEnabled) return; // Handled by shield
+  blockEventInSpecMode(e);
+
+  if (!selectionEnabled || !e.metaKey) return;
   
-  // Use elementFromPoint for the most reliable target identification on disabled elements
-  // This bypasses many browser-level restrictions on 'disabled' elements.
   const rawTarget = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement;
   const target = rawTarget?.closest('a, button, input, select, textarea') || rawTarget;
   
-  // 1. Block events first
-  const mouseEvent = new MouseEvent('mousedown', {
-    bubbles: true,
-    cancelable: true,
-    view: window,
-    clientX: e.clientX,
-    clientY: e.clientY
-  });
-  blockEventInSpecMode(mouseEvent as any);
-
-  // 2. Handle selection
-  if (!selectionEnabled) return;
-  if (e.altKey || e.metaKey || e.ctrlKey) return;
-  if (!target) return;
-
-  handleClick(target as HTMLElement);
-}, true);
-
-document.addEventListener('mouseup', blockEventInSpecMode, true);
-
-document.addEventListener('click', (e) => {
-  // Alt, Cmd(Meta), Ctrl 키를 누르고 클릭하면 무조건 허용
-  if (e.altKey || e.metaKey || e.ctrlKey) return;
-
-  if (specModeActive && selectionEnabled) {
+  if (target && target !== document.documentElement && target !== document.body) {
+    handleClick(target as HTMLElement);
     e.preventDefault();
     e.stopPropagation();
   }
 }, true);
 
+document.addEventListener('mouseup', blockEventInSpecMode, true);
+document.addEventListener('click', blockEventInSpecMode, true);
 
 // IPC Handler for messages from renderer
 ipcRenderer.on('highlight-element', (_event, selector) => {
@@ -350,19 +295,34 @@ ipcRenderer.on('highlight-element', (_event, selector) => {
 
 // Meta(Cmd) 키 상태를 renderer에 전달 (webview 포커스 중에도 cmd 감지)
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Meta') ipcRenderer.sendToHost('webview-cmd-key', { pressed: true });
+  if (e.key === 'Meta') {
+    ipcRenderer.send('webview-ipc-relay', 'webview-cmd-key', { pressed: true });
+    if (specModeActive) {
+      selectionEnabled = true;
+      ensureSelectionStyle(true);
+    }
+  }
 });
 document.addEventListener('keyup', (e) => {
-  if (e.key === 'Meta') ipcRenderer.sendToHost('webview-cmd-key', { pressed: false });
+  if (e.key === 'Meta') {
+    ipcRenderer.send('webview-ipc-relay', 'webview-cmd-key', { pressed: false });
+    selectionEnabled = false;
+    ensureSelectionStyle(false);
+    if (lastHoveredElement) {
+      lastHoveredElement = null;
+      ipcRenderer.send('webview-ipc-relay', 'webview-hover', null);
+    }
+  }
 });
+
 
 // Scroll detection: notify renderer to hide overlays while scrolling
 let scrollEndTimeout: any = null;
 window.addEventListener('scroll', () => {
-  ipcRenderer.sendToHost('webview-scrolling', true);
+  ipcRenderer.send('webview-ipc-relay', 'webview-scrolling', true);
   if (scrollEndTimeout) clearTimeout(scrollEndTimeout);
   scrollEndTimeout = setTimeout(() => {
-    ipcRenderer.sendToHost('webview-scrolling', false);
+    ipcRenderer.send('webview-scrolling', false);
   }, 150);
 }, { capture: true, passive: true });
 
@@ -417,6 +377,13 @@ ipcRenderer.on('get-rects', (_event, selectors: string[]) => {
       if (el) {
         const visible = getClippedRect(el);
         if (visible && visible.width > 0 && visible.height > 0) {
+          // 모달/오버레이가 덮고 있으면 숨김: 요소 중심점에서 elementFromPoint로 확인
+          const centerX = visible.left + visible.width / 2;
+          const centerY = visible.top + visible.height / 2;
+          const topEl = document.elementFromPoint(centerX, centerY);
+          const isCovered = topEl !== null && !el.contains(topEl) && !topEl.contains(el);
+          if (isCovered) return;
+
           rects[selector] = {
             top: Math.round(visible.top + offset.y),
             left: Math.round(visible.left + offset.x),
@@ -435,6 +402,6 @@ ipcRenderer.on('get-rects', (_event, selectors: string[]) => {
   }
   
   lastSentRects = currentRectsStr;
-  ipcRenderer.sendToHost('rects-update', rects);
+  ipcRenderer.send('webview-ipc-relay', 'rects-update', rects);
 });
 

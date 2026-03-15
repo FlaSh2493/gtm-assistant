@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GTMAssistant from './GTMAssistant';
 import { storage } from '../utils/storage';
 import { AppConfig } from '../types';
-import { Power, MousePointer2, ClipboardCheck, Settings, Globe, ChevronLeft, ChevronRight, RotateCw, Eye, CheckCircle2, Home } from 'lucide-react';
+import { Power, MousePointer2, ClipboardCheck, Settings, Globe, ChevronLeft, ChevronRight, RotateCw, Home} from 'lucide-react';
 import HomeScreen from './HomeScreen';
 import { resolveUrl } from './utils/UrlResolver';
 import GtmLogo from './GtmLogo';
@@ -15,11 +15,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   
-  const webviewRef = useRef<any>(null);
-  const webviewContentsIdRef = useRef<number | null>(null);
-  const [preloadPath] = useState(() =>
-    window.electronAPI?.getPreloadPath?.('webview-preload.cjs') ?? ''
-  );
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // 1. 설정 로드
@@ -37,32 +33,158 @@ const App: React.FC = () => {
       setShowHome(true);
     });
   }, []);
+
+  // Webview 컨테이너 크기 모니터링 및 메인 프로세스로 전달
+  useEffect(() => {
+    if (showHome || !containerRef.current) return;
+
+    const updateBounds = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const bounds = {
+        x: Math.round(rect.x),
+        y: Math.round(rect.y),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height)
+      };
+      window.electronAPI.updateWebviewBounds(bounds);
+    };
+
+    const observer = new ResizeObserver(() => {
+      updateBounds();
+    });
+
+    observer.observe(containerRef.current);
+    updateBounds(); // 초기 위치 설정
+
+    // 창 리사이즈 이벤트도 대응
+    window.addEventListener('resize', updateBounds);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateBounds);
+    };
+  }, [showHome]);
+
+  // 메인 프로세스로부터 오는 웹뷰 이벤트 처리
+  useEffect(() => {
+    const handleWebviewEvent = (data: { channel: string, args: any[] }) => {
+      const { channel, args } = data;
+      
+      // Notify other components (like GTMAssistant)
+      window.dispatchEvent(new CustomEvent('webview-event-internal', { detail: data }));
+
+      switch (channel) {
+        case 'did-navigate':
+        case 'did-navigate-in-page': {
+          const newUrl = args[0].url;
+          if (!isEditingUrl) setInputUrl(newUrl);
+          if (newUrl && newUrl !== 'about:blank') storage.setLastUrl(newUrl);
+          break;
+        }
+        case 'did-start-loading': setIsLoading(true); break;
+        case 'did-stop-loading': setIsLoading(false); break;
+        case 'dom-ready':
+          window.dispatchEvent(new CustomEvent('webview-dom-ready'));
+          break;
+        case 'page-title-updated':
+          window.dispatchEvent(new CustomEvent('webview-title-updated', { detail: args[0].title }));
+          break;
+        case 'did-fail-load':
+          console.error('[App] Webview failed to load:', args[0]);
+          break;
+      }
+    };
+
+    const handleWebviewIpc = (data: { channel: string, args: any[] }) => {
+      const { channel, args } = data;
+      if (channel === 'webview-hover') {
+        window.dispatchEvent(new CustomEvent('webview-element-hover', { detail: args[0] }));
+      } else if (channel === 'webview-click') {
+        window.dispatchEvent(new CustomEvent('webview-element-click', { detail: args[0] }));
+      } else if (channel === 'webview-cmd-key') {
+        window.dispatchEvent(new CustomEvent('webview-cmd-key', { detail: args[0] }));
+      } else if (channel === 'webview-scrolling') {
+        window.dispatchEvent(new CustomEvent('webview-scrolling', { detail: args[0] }));
+      } else if (channel === 'rects-update') {
+        window.dispatchEvent(new CustomEvent('rects-update', { detail: args[0] }));
+      }
+    };
+
+    window.electronAPI.on('webview-event', handleWebviewEvent);
+    window.electronAPI.on('webview-ipc-message', handleWebviewIpc);
+
+    // Initial load if initialUrl exists and we are not home
+    if (!showHome && initialUrl) {
+      window.electronAPI.loadUrl(initialUrl);
+    }
+  }, [showHome]);
+
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const targetUrl = resolveUrl(inputUrl);
     if (!targetUrl) return;
 
     setIsEditingUrl(false);
-    
-    // Always set initialUrl so the webview src is in sync with our intent
     setInitialUrl(targetUrl);
     setInputUrl(targetUrl);
     setShowHome(false);
 
-    if (webviewRef.current) {
-      try {
-        const id = webviewRef.current.getWebContentsId();
-        window.electronAPI.send('webview-load-url', { webContentsId: id, url: targetUrl });
-      } catch (err) {
-        console.warn('[App] Webview not ready:', err);
-      }
-    }
+    window.electronAPI.loadUrl(targetUrl);
   };
 
   const handleGoHome = () => {
     setShowHome(true);
     setInputUrl('');
+    // 홈으로 갈 때는 웹뷰를 화면 밖으로 치우거나 크기를 0으로 만듦
+    window.electronAPI.updateWebviewBounds({ x: 0, y: 0, width: 0, height: 0 });
+    window.electronAPI.setIgnoreMouseEvents(false); // 홈 화면에서는 일반 클릭 허용
   };
+
+
+  // 상호작용 영역(Bounds) 수집 및 메인 프로세스 전달
+  useEffect(() => {
+    if (showHome) return;
+
+    const syncUIBounds = () => {
+      const interactiveSelectors = [
+        '.app-header',
+        '.drawer-container',
+        '.spec-popover',
+        '.popover-overlay', // Changed from > div to capture the full overlay background for dismiss clicks
+        '.gtm-spec-label-container',
+        '.pageview-badge',
+        '.verification-overlay-content'
+      ];
+
+      const boundsList = interactiveSelectors
+        .flatMap(selector => {
+          const elements = Array.from(document.querySelectorAll(selector));
+          return elements.map(el => {
+            const rect = el.getBoundingClientRect();
+            // 해당 영역 내에 input이나 textarea가 있는지 확인
+            const hasInput = el.querySelector('input, textarea, [contenteditable="true"]') !== null;
+            return {
+              x: Math.round(rect.left),
+              y: Math.round(rect.top),
+              width: Math.round(rect.width),
+              height: Math.round(rect.height),
+              isInput: hasInput
+            };
+          });
+        })
+        .filter(b => b.width > 0 && b.height > 0);
+
+      window.electronAPI.updateUIBounds(boundsList);
+    };
+
+    const interval = setInterval(syncUIBounds, 500);
+    syncUIBounds();
+
+    return () => clearInterval(interval);
+  }, [showHome]);
+
+
 
   const updateConfigInAppOrAssist = async (newConfig: AppConfig) => {
     setConfig(newConfig);
@@ -76,72 +198,18 @@ const App: React.FC = () => {
     await updateConfigInAppOrAssist(newConfig);
   };
 
-  const handleModeChange = async (mode: 'spec' | 'verify' | 'view') => {
+  const handleModeChange = async (mode: 'spec' | 'verify') => {
     if (!config) return;
     const newConfig = { ...config, mode };
     await updateConfigInAppOrAssist(newConfig);
   };
 
-  const handleBack = () => webviewRef.current?.goBack();
-  const handleForward = () => webviewRef.current?.goForward();
-  const handleReload = () => webviewRef.current?.reload();
+  const handleBack = () => window.electronAPI.doWebviewAction('goBack');
+  const handleForward = () => window.electronAPI.doWebviewAction('goForward');
+  const handleReload = () => window.electronAPI.doWebviewAction('reload');
+  const handleOpenDevTools = () => window.electronAPI.doWebviewAction('openDevTools');
 
-  // Use a ref callback so listeners are attached as soon as webview mounts
-  const webviewCallbackRef = useCallback((node: any) => {
-    if (!node) {
-      webviewRef.current = null;
-      return;
-    }
-    webviewRef.current = node;
-
-    const handleWebviewMessage = (event: any) => {
-      if (event.channel === 'webview-hover') {
-        window.dispatchEvent(new CustomEvent('webview-element-hover', { detail: event.args[0] }));
-      } else if (event.channel === 'webview-click') {
-        window.dispatchEvent(new CustomEvent('webview-element-click', { detail: event.args[0] }));
-      } else if (event.channel === 'webview-cmd-key') {
-        window.dispatchEvent(new CustomEvent('webview-cmd-key', { detail: event.args[0] }));
-      }
-    };
-
-    const handleNavigate = (event: any) => {
-      const newUrl = event.url;
-      if (!isEditingUrl) {
-        setInputUrl(newUrl);
-      }
-      
-      if (newUrl && newUrl !== 'about:blank') {
-        storage.setLastUrl(newUrl);
-      }
-    };
-
-    const handleFailLoad = (event: any) => {
-      console.error('[App] Webview failed to load:', event.errorCode, event.errorDescription, event.validatedURL);
-    };
-
-    const handleDomReady = () => {
-      // webContentsId 캐싱 (getWebContentsId는 동기 블로킹이므로 최초 1회만)
-      if (webviewContentsIdRef.current === null) {
-        try { webviewContentsIdRef.current = node.getWebContentsId(); } catch (_) {}
-      }
-      window.dispatchEvent(new CustomEvent('webview-dom-ready'));
-    };
-
-    const handlePreloadError = (event: any) => {
-      console.error('[App] Webview preload error:', event);
-    };
-
-    node.addEventListener('ipc-message', handleWebviewMessage);
-    node.addEventListener('did-navigate', handleNavigate);
-    node.addEventListener('did-navigate-in-page', handleNavigate);
-    node.addEventListener('did-fail-load', handleFailLoad);
-    node.addEventListener('dom-ready', handleDomReady);
-    node.addEventListener('preload-error', handlePreloadError);
-    node.addEventListener('did-start-loading', () => setIsLoading(true));
-    node.addEventListener('did-stop-loading', () => setIsLoading(false));
-  }, []);
-
-  // initialUrl이 준비되기 전까지 로딩 표시 (웹뷰 초기 로드 시 리셋 방지)
+  // initialUrl이 준비되기 전까지 로딩 표시
   if (!initialUrl || !config) return null;
 
   return (
@@ -173,10 +241,6 @@ const App: React.FC = () => {
               setInputUrl(e.target.value);
               setIsEditingUrl(true);
             }}
-            onBlur={() => {
-              // Optionally revert to actual URL if not submitted, 
-              // but let's keep it for now as user might still want to submit
-            }}
             placeholder="Enter URL to audit..."
           />
         </form>
@@ -190,20 +254,13 @@ const App: React.FC = () => {
             >
               <MousePointer2 size={18} />
             </button>
-            <button 
-              className={config?.mode === 'view' ? 'active' : ''} 
-              onClick={() => handleModeChange('view')}
-              title="보기 전용"
-            >
-              <Eye size={18} />
-            </button>
-            <button 
-              className={config?.mode === 'verify' ? 'active' : ''} 
+            {/* <button
+              className={config?.mode === 'verify' ? 'active' : ''}
               onClick={() => handleModeChange('verify')}
               title="명세 검증"
             >
               <CheckCircle2 size={18} />
-            </button>
+            </button> */}
           </div>
           
           <button 
@@ -233,14 +290,7 @@ const App: React.FC = () => {
               setIsEditingUrl(false);
               setShowHome(false);
 
-              if (webviewRef.current) {
-                try {
-                  const id = webviewRef.current.getWebContentsId();
-                  window.electronAPI.send('webview-load-url', { webContentsId: id, url: targetUrl });
-                } catch (err) {
-                  console.warn('[App] Webview not ready:', err);
-                }
-              }
+              window.electronAPI.loadUrl(targetUrl);
               
               if (mode && config) {
                 updateConfigInAppOrAssist({ ...config, mode });
@@ -248,30 +298,14 @@ const App: React.FC = () => {
             }} 
           />
         </div>
-        <div className="webview-container" style={{ visibility: showHome ? 'hidden' : 'visible' }}>
+        <div className="webview-container" ref={containerRef} style={{ visibility: showHome ? 'hidden' : 'visible' }}>
             {isLoading && !showHome && (
               <div className="webview-loading-overlay">
                 <div className="webview-loading-spinner" />
               </div>
             )}
-            <webview
-              {...({
-                ref: (node: any) => {
-                  webviewCallbackRef(node);
-                  if (node && initialUrl && !node.src) {
-                    node.src = initialUrl;
-                  }
-                },
-                preload: preloadPath,
-                style: { width: '100%', height: '100%' },
-                webpreferences: "contextIsolation=no, nodeIntegration=yes",
-                nodeintegrationinsubframes: "true",
-                allowpopups: "true"
-              } as any)}
-            />
-            {/* Overlay will be rendered here, positioned matching webview content */}
+            {/* 실제 웹뷰는 메인 프로세스에서 이 영역 뒤에 배치됨 */}
             <GTMAssistant 
-              webviewRef={webviewRef} 
               config={config} 
               setConfig={setConfig} 
             />

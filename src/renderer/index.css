@@ -5,17 +5,17 @@
   padding: 0;
 }
 
-body {
+html,
+body,
+#root {
+  background-color: transparent !important;
+  background: transparent !important;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   overflow: hidden;
   height: 100vh;
   width: 100vw;
 }
 
-#root {
-  height: 100%;
-  width: 100%;
-}
 
 .hidden {
   display: none !important;
@@ -56,7 +56,13 @@ body {
 }
 
 /* Ensure any direct interactive children of mount are active */
-.gtm-assistant-inner > * {
+.app-header,
+.drawer-container,
+.spec-popover,
+.popover-overlay,
+.gtm-spec-label-container,
+.pageview-badge,
+.verification-overlay-content {
   pointer-events: auto;
 }
 
@@ -67,6 +73,7 @@ body {
   height: 100vh;
   overflow: hidden;
   font-family: Inter, system-ui, sans-serif;
+  background: transparent !important;
 }
 .app-header {
   height: 64px;
@@ -281,15 +288,14 @@ body {
   flex: 1;
   display: flex;
   overflow: hidden;
-  background: #f9fafb;
+  background: transparent !important;
   position: relative;
 }
 .webview-container {
   flex: 1;
   border: none;
   position: relative;
-  background: white;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  background: transparent !important;
   border-radius: 8px;
   overflow: hidden;
 }

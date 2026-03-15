@@ -1,9 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -17,7 +12,35 @@ contextBridge.exposeInMainWorld('electronAPI', {
   send: (channel: string, ...args: any[]) => {
     ipcRenderer.send(channel, ...args);
   },
-  getPreloadPath: (filename: string) => {
-    return `file://${join(__dirname, filename)}`;
+  // WebContentsView 마이그레이션을 위한 추가 API
+  updateWebviewBounds: (bounds: any) => {
+    ipcRenderer.send('update-webview-bounds', bounds);
+  },
+  updateUIBounds: (bounds: any[]) => {
+    ipcRenderer.send('update-ui-bounds', bounds);
+  },
+  setFocusable: (focusable: boolean) => {
+    ipcRenderer.send('set-focusable', focusable);
+  },
+  doWebviewAction: (action: string) => {
+
+    ipcRenderer.send('webview-action', { action });
+  },
+
+  loadUrl: (url: string) => {
+    ipcRenderer.send('webview-load-url', { url });
+  },
+  sendToWebview: (channel: string, ...args: any[]) => {
+    ipcRenderer.send('send-to-webview', { channel, args });
+  },
+  relayMouseDown: (x: number, y: number, meta?: boolean) => {
+    ipcRenderer.send('relay-mouse-down', { x, y, meta });
+  },
+  relayScroll: (x: number, y: number, deltaX: number, deltaY: number) => {
+    ipcRenderer.send('relay-scroll', { x, y, deltaX, deltaY });
+  },
+  setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => {
+    ipcRenderer.send('set-ignore-mouse-events', ignore, options);
   }
 });
+

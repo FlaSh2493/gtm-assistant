@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useGTMAssistant } from '../GTMAssistant';
 import { EventSpec } from '../../types';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Tag } from 'lucide-react';
 
 interface GroupedSpec {
@@ -11,22 +11,13 @@ interface GroupedSpec {
 }
 
 const SpecOutline: React.FC = () => {
-  const { specs, config, setEditingSpec, setSelectedElement, showAllBadges, webviewRef, isWebviewReady, hoveredElement } = useGTMAssistant();
+  const { specs, config, setEditingSpec, setSelectedElement, showAllBadges, isWebviewReady, hoveredElement, sendToWebview } = useGTMAssistant();
   const [groupedSpecs, setGroupedSpecs] = useState<GroupedSpec[]>([]);
-  const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
-
-
-  // Passive hover detection: Expand labels if the hovered element matches a spec's selector
-  useEffect(() => {
-    if (config.mode === 'spec' && hoveredElement?.selector) {
-      setHoveredGroupId(hoveredElement.selector);
-    } else if (config.mode === 'spec') {
-      setHoveredGroupId(null);
-    }
-  }, [hoveredElement, config.mode]);
+  const [badgeHoveredGroupId, setBadgeHoveredGroupId] = useState<string | null>(null);
+  const hoveredGroupId = badgeHoveredGroupId ?? (config.mode === 'spec' ? (hoveredElement?.selector ?? null) : null);
 
   useEffect(() => {
-    if ((config.mode !== 'spec' && config.mode !== 'view') || !showAllBadges || !webviewRef.current || !isWebviewReady) {
+    if (config.mode !== 'spec' || !showAllBadges || !isWebviewReady) {
       setGroupedSpecs([]);
       return;
     }
@@ -37,14 +28,12 @@ const SpecOutline: React.FC = () => {
         .filter(s => s && s !== 'document');
       
       if (selectors.length > 0) {
-        webviewRef.current.send('get-rects', selectors);
+        sendToWebview('get-rects', selectors);
       }
     };
 
-    const handleRectsUpdate = (event: any) => {
-      if (event.channel !== 'rects-update') return;
-      
-      const rects = event.args[0];
+    const handleRectsUpdate = (e: any) => {
+      const rects = e.detail;
       const groupsMap = new Map<string, EventSpec[]>();
       
       specs.forEach(spec => {
@@ -69,31 +58,27 @@ const SpecOutline: React.FC = () => {
       setGroupedSpecs(newGroups);
     };
 
-    const webview = webviewRef.current;
-    if (webview) {
-      const handleIpcMessage = (event: any) => {
-        if (event.channel === 'rects-update') {
-          handleRectsUpdate(event);
-        } else if (event.channel === 'webview-scrolling') {
-          requestRects();
-        }
-      };
-
-      webview.addEventListener('ipc-message', handleIpcMessage);
-
-      // Initial request
+    const handleWebviewScroll = () => {
       requestRects();
+    };
 
-      const interval = setInterval(requestRects, 1000);
+    // App.tsx에서 relay하는 custom event들 구독
+    window.addEventListener('rects-update', handleRectsUpdate);
+    window.addEventListener('webview-scrolling', handleWebviewScroll);
 
-      return () => {
-        webview.removeEventListener('ipc-message', handleIpcMessage);
-        clearInterval(interval);
-      };
-    }
-  }, [specs, config.mode, showAllBadges, webviewRef, isWebviewReady]);
+    // Initial request
+    requestRects();
 
-  if ((config.mode !== 'spec' && config.mode !== 'view') || !showAllBadges || groupedSpecs.length === 0) return null;
+    const interval = setInterval(requestRects, 1000);
+
+    return () => {
+      window.removeEventListener('rects-update', handleRectsUpdate);
+      window.removeEventListener('webview-scrolling', handleWebviewScroll);
+      clearInterval(interval);
+    };
+  }, [specs, config.mode, showAllBadges, isWebviewReady, sendToWebview]);
+
+  if (config.mode !== 'spec' || !showAllBadges || groupedSpecs.length === 0) return null;
 
   const handleEditClick = (e: React.MouseEvent, spec: EventSpec, rect: any, selector: string) => {
     e.stopPropagation();
@@ -132,31 +117,16 @@ const SpecOutline: React.FC = () => {
             }}
             transition={{ duration: 0.1 }}
             className="gtm-spec-group-outline"
-            onClick={(e) => {
-              // Only handle click in View mode (to open popover via border area)
-              // In Spec mode, we want clicks to pass through to elements underneath
-              if (config.mode === 'view') {
-                handleEditClick(e, mainSpec, group.rect, group.selector);
-              }
-            }}
-            onMouseEnter={() => {
-              if (config.mode === 'view') setHoveredGroupId(group.selector);
-            }}
-            onMouseLeave={() => {
-              if (config.mode === 'view') setHoveredGroupId(null);
-            }}
             style={{
               position: 'absolute',
               top: group.rect.top,
               left: group.rect.left,
               width: group.rect.width,
               height: group.rect.height,
-              border: `2px solid ${(isHovered && config.mode !== 'view') ? '#ea580c' : 'rgba(234, 88, 12, 0.6)'}`,
+              border: `2px solid ${isHovered ? '#ea580c' : 'rgba(234, 88, 12, 0.6)'}`,
               borderRadius: '8px',
-              // pointerEvents: 'none' in Spec mode allows tagging nested elements
-              // pointerEvents: 'auto' in View mode allows clicking the border to see details
-              pointerEvents: config.mode === 'spec' ? 'none' : 'auto',
-              cursor: config.mode === 'view' ? 'pointer' : 'default',
+              pointerEvents: 'none',
+              cursor: 'default',
               boxSizing: 'border-box',
               transition: 'border-color 0.2s, background-color 0.2s',
               zIndex: isHovered ? 12 : 10,
@@ -180,8 +150,8 @@ const SpecOutline: React.FC = () => {
                 zIndex: 13,
                 pointerEvents: 'auto', // Labels must always be interactive
               }}
-              onMouseEnter={() => setHoveredGroupId(group.selector)}
-              onMouseLeave={() => setHoveredGroupId(null)}
+              onMouseEnter={() => setBadgeHoveredGroupId(group.selector)}
+              onMouseLeave={() => setBadgeHoveredGroupId(null)}
             >
               {!isHovered ? (
                 <div

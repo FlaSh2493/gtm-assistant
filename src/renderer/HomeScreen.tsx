@@ -7,7 +7,7 @@ interface HomeScreenProps {
   url: string;
   onUrlChange: (url: string) => void;
   lastUrl: string | null;
-  onNavigate: (url: string, mode?: 'spec' | 'verify' | 'view') => void;
+  onNavigate: (url: string, mode?: 'spec' | 'verify') => void;
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ url, onUrlChange, lastUrl, onNavigate }) => {

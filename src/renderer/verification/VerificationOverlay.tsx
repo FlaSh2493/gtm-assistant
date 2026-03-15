@@ -8,11 +8,10 @@ import { EXAMPLE_GTM_JSON } from './ExampleData';
 import './verification.css';
 
 const VerificationOverlay: React.FC = () => {
-  const { config, hoveredElement, webviewRef, isWebviewReady, specs, externalSpecs, gtmJson, currentUrl, setIsDrawerOpen } = useGTMAssistant();
+  const { config, hoveredElement, isWebviewReady, specs, externalSpecs, gtmJson, currentUrl, setIsDrawerOpen, sendToWebview } = useGTMAssistant();
   const [results, setResults] = useState<VerificationResult[]>([]);
   const [hoveredSelector, setHoveredSelector] = useState<string | null>(null);
   const [elementRects, setElementRects] = useState<Record<string, any>>({});
-
 
   useEffect(() => {
     if (config.mode !== 'verify') return;
@@ -27,47 +26,38 @@ const VerificationOverlay: React.FC = () => {
   }, [config.mode, specs, externalSpecs, gtmJson, currentUrl]);
 
   useEffect(() => {
-    if (config.mode !== 'verify' || !webviewRef.current || !isWebviewReady) return;
+    if (config.mode !== 'verify' || !isWebviewReady) return;
 
     const requestRects = () => {
       const selectors = results
         .map(r => r.selector)
         .filter(s => s && s !== 'document');
       
-      if (selectors.length > 0 && webviewRef.current && isWebviewReady) {
-        try {
-          webviewRef.current.send('get-rects', selectors);
-        } catch (e) {
-          console.warn('[VerificationOverlay] Failed to send get-rects:', e);
-        }
+      if (selectors.length > 0 && isWebviewReady) {
+        sendToWebview('get-rects', selectors);
       }
     };
 
-    const handleRectsUpdate = (event: any) => {
-      if (event.channel !== 'rects-update') return;
-      setElementRects(event.args[0]);
+    const handleRectsUpdate = (e: any) => {
+      setElementRects(e.detail);
     };
 
-    const webview = webviewRef.current;
-    if (webview) {
-      const handleIpcMessage = (event: any) => {
-        if (event.channel === 'rects-update') {
-          handleRectsUpdate(event);
-        } else if (event.channel === 'webview-scrolling') {
-          requestRects();
-        }
-      };
-
-      webview.addEventListener('ipc-message', handleIpcMessage);
-      const interval = setInterval(requestRects, 1000);
+    const handleWebviewScroll = () => {
       requestRects();
+    };
 
-      return () => {
-        webview.removeEventListener('ipc-message', handleIpcMessage);
-        clearInterval(interval);
-      };
-    }
-  }, [config.mode, results, webviewRef, isWebviewReady]);
+    window.addEventListener('rects-update', handleRectsUpdate);
+    window.addEventListener('webview-scrolling', handleWebviewScroll);
+    
+    const interval = setInterval(requestRects, 1000);
+    requestRects();
+
+    return () => {
+      window.removeEventListener('rects-update', handleRectsUpdate);
+      window.removeEventListener('webview-scrolling', handleWebviewScroll);
+      clearInterval(interval);
+    };
+  }, [config.mode, results, isWebviewReady, sendToWebview]);
 
   if (config.mode !== 'verify') return null;
 

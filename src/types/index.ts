@@ -42,7 +42,7 @@ export interface CSVColumn {
 
 export interface AppConfig {
   enabled: boolean;
-  mode: 'spec' | 'verify' | 'view';
+  mode: 'spec' | 'verify';
   showHover: boolean;
   selector: {
     dataAttributes: string[];

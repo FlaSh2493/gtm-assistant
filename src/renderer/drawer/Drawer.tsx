@@ -6,41 +6,10 @@ import SpecList from './SpecList';
 import VerificationDrawer from '../verification/VerificationDrawer';
 
 const Drawer: React.FC = () => {
-  const { config, setMode, specs, updateConfig, showAllBadges, setShowAllBadges, webviewRef, isWebviewReady, isDrawerOpen, setIsDrawerOpen } = useGTMAssistant();
+  const { config, setMode, specs, updateConfig, showAllBadges, setShowAllBadges, currentUrl, currentTitle, isDrawerOpen, setIsDrawerOpen } = useGTMAssistant();
   
-  const [pageInfo, setPageInfo] = useState({ title: 'Loading...', url: '' });
+  const pageInfo = { title: currentTitle || 'Loading...', url: currentUrl || '' };
 
-  useEffect(() => {
-    const webview = webviewRef.current;
-    if (!webview) return;
-
-    const updateInfo = () => {
-      if (!webview || !isWebviewReady) return;
-      try {
-        setPageInfo({
-          title: webview.getTitle(),
-          url: webview.getURL()
-        });
-      } catch (e) {
-        console.warn('[Drawer] Failed to get webview info:', e);
-      }
-    };
-
-    webview.addEventListener('did-stop-loading', updateInfo);
-    webview.addEventListener('did-navigate', updateInfo);
-    webview.addEventListener('did-navigate-in-page', updateInfo);
-    
-    // Only call if ready
-    if (isWebviewReady) {
-      updateInfo();
-    }
-
-    return () => {
-      webview.removeEventListener('did-stop-loading', updateInfo);
-      webview.removeEventListener('did-navigate', updateInfo);
-      webview.removeEventListener('did-navigate-in-page', updateInfo);
-    };
-  }, [webviewRef, isWebviewReady]);
 
   return (
     <div 
@@ -129,12 +98,12 @@ const Drawer: React.FC = () => {
                 >
                   명세 작성
                 </button>
-                <button 
-                  className={config.mode === 'verify' ? 'active' : ''} 
+                {/* <button
+                  className={config.mode === 'verify' ? 'active' : ''}
                   onClick={() => setMode('verify')}
                 >
                   GTM 검수
-                </button>
+                </button> */}
               </div>
               
               <div className="page-info-panel">

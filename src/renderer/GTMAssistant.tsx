@@ -22,7 +22,7 @@ interface WebviewElementInfo {
 interface GTMAssistantContextType {
   config: AppConfig;
   specs: EventSpec[];
-  setMode: (mode: 'spec' | 'verify' | 'view') => void;
+  setMode: (mode: 'spec' | 'verify') => void;
   refreshSpecs: () => Promise<void>;
   selectedElement: WebviewElementInfo | null;
   setSelectedElement: (el: WebviewElementInfo | null) => void;
@@ -33,15 +33,16 @@ interface GTMAssistantContextType {
   editingSpec: EventSpec | null;
   setEditingSpec: (spec: EventSpec | null) => void;
   updateConfig: (updates: Partial<AppConfig>) => Promise<void>;
-  webviewRef: React.RefObject<any>;
   isWebviewReady: boolean;
   externalSpecs: EventSpec[] | null;
   setExternalSpecs: (specs: EventSpec[] | null) => void;
   gtmJson: any | null;
   setGtmJson: (json: any | null) => void;
   currentUrl: string;
+  currentTitle: string;
   isDrawerOpen: boolean;
   setIsDrawerOpen: (isOpen: boolean) => void;
+  sendToWebview: (channel: string, ...args: any[]) => void;
 }
 
 const GTMAssistantContext = createContext<GTMAssistantContextType | undefined>(undefined);
@@ -53,12 +54,11 @@ export const useGTMAssistant = () => {
 };
 
 interface Props {
-  webviewRef: React.RefObject<any>;
   config: AppConfig;
   setConfig: React.Dispatch<React.SetStateAction<AppConfig | null>>;
 }
 
-const GTMAssistant: React.FC<Props> = ({ webviewRef, config, setConfig }) => {
+const GTMAssistant: React.FC<Props> = ({ config, setConfig }) => {
   const configRef = useRef<AppConfig>(config);
   const [specs, setSpecs] = useState<EventSpec[]>([]);
   const [hoveredElement, setHoveredElement] = useState<WebviewElementInfo | null>(null);
@@ -69,6 +69,7 @@ const GTMAssistant: React.FC<Props> = ({ webviewRef, config, setConfig }) => {
   const [externalSpecs, setExternalSpecs] = useState<EventSpec[] | null>(null);
   const [gtmJson, setGtmJson] = useState<any | null>(null);
   const [currentUrl, setCurrentUrl] = useState('');
+  const [currentTitle, setCurrentTitle] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const isCmdPressedRef = useRef(false);
 
@@ -77,18 +78,7 @@ const GTMAssistant: React.FC<Props> = ({ webviewRef, config, setConfig }) => {
     configRef.current = config;
   }, [config]);
 
-  const loadSpecs = async (forceUrl?: string) => {
-    if (!webviewRef.current) return;
-    
-    // Fallback URL if we are forcing a load (e.g. during DOM ready or navigate)
-    // or if the webview is not quite ready to return a URL yet.
-    let url = '';
-    try {
-      url = forceUrl || webviewRef.current.getURL() || '';
-    } catch (e) {
-      console.warn('[GTMAssistant] Failed to get URL:', e);
-    }
-    
+  const loadSpecsForUrl = async (url: string) => {
     if (!url || url === 'about:blank') return;
     setCurrentUrl(url);
 
@@ -102,9 +92,9 @@ const GTMAssistant: React.FC<Props> = ({ webviewRef, config, setConfig }) => {
   };
 
   const sendToWebview = (channel: string, ...args: any[]) => {
-    if (!webviewRef.current || !isWebviewReady) return;
+    if (!isWebviewReady) return;
     try {
-      webviewRef.current.send(channel, ...args);
+      window.electronAPI.sendToWebview(channel, ...args);
     } catch (e) {
       console.warn(`[GTMAssistant] Failed to send to webview (${channel}):`, e);
     }
@@ -112,9 +102,9 @@ const GTMAssistant: React.FC<Props> = ({ webviewRef, config, setConfig }) => {
 
   // config가 바뀔 때마다 webview preload에 spec 모드 활성 여부를 전달
   useEffect(() => {
-    // spec 모드나 view 모드일 때 사이트의 기본 이벤트를 차단 (보안/안정성)
-    const isBlockActive = config.enabled && (config.mode === 'spec' || config.mode === 'view');
+    const isBlockActive = config.enabled && config.mode === 'spec';
     sendToWebview('set-spec-mode', isBlockActive);
+    window.electronAPI.send('set-spec-mode-main', config.enabled && config.mode === 'spec');
 
     // spec 모드에서도 cmd를 누르기 전까지는 selection 비활성화 (view 모드처럼 동작)
     const isSelectionEnabled = config.enabled && config.mode === 'spec' && isCmdPressedRef.current;
@@ -126,44 +116,85 @@ const GTMAssistant: React.FC<Props> = ({ webviewRef, config, setConfig }) => {
     const activateCmd = () => {
       if (isCmdPressedRef.current) return;
       isCmdPressedRef.current = true;
+      window.electronAPI.send('set-cmd-pressed', true);
       if (configRef.current.enabled && configRef.current.mode === 'spec') {
-        try { webviewRef.current?.send('set-selection-enabled', true); } catch (_) {}
+        sendToWebview('set-selection-enabled', true);
       }
     };
 
     const deactivateCmd = () => {
       if (!isCmdPressedRef.current) return;
       isCmdPressedRef.current = false;
+      window.electronAPI.send('set-cmd-pressed', false);
       setHoveredElement(null);
-      try { webviewRef.current?.send('set-selection-enabled', false); } catch (_) {}
+      sendToWebview('set-selection-enabled', false);
     };
 
     const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Meta') activateCmd(); };
     const handleKeyUp = (e: KeyboardEvent) => { if (e.key === 'Meta') deactivateCmd(); };
-    // webview 클릭으로 포커스 이동 시 cmd 상태 초기화
-    const handleBlur = () => deactivateCmd();
-    // webview 내부 키 이벤트 (App.tsx에서 CustomEvent로 relay)
+    
+    // Webview 내부 키 이벤트 릴레이 (Main Process -> App.tsx -> window event)
     const handleWebviewCmd = (e: any) => {
       if (e.detail?.pressed) activateCmd();
       else deactivateCmd();
     };
 
+    // 마우스 이동 시 Cmd 키 상태 재검 + cmd 중이면 guestView로 좌표 relay
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (e.metaKey && !isCmdPressedRef.current) {
+        activateCmd();
+      } else if (!e.metaKey && isCmdPressedRef.current) {
+        deactivateCmd();
+      }
+
+    };
+
+    const handleGlobalMouseDown = (e: MouseEvent) => {
+      if (!configRef.current.enabled || configRef.current.mode !== 'spec') return;
+      // UI 요소(팝오버, 드로어 등) 위에 있으면 guestView에 inject하지 않음
+      const target = e.target as HTMLElement;
+      if (target.closest('.popover-overlay, .drawer-container, .spec-popover, .pageview-badge, .verification-overlay-content, .gtm-spec-label-container')) return;
+      const container = document.querySelector('.webview-container');
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) {
+        window.electronAPI.relayMouseDown(x, y, e.metaKey);
+      }
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      const container = document.querySelector('.webview-container');
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) {
+        window.electronAPI.relayScroll(x, y, e.deltaX, e.deltaY);
+      }
+    };
+
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('blur', handleBlur);
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mousedown', handleGlobalMouseDown);
+    window.addEventListener('wheel', handleWheel, { passive: true });
     window.addEventListener('webview-cmd-key', handleWebviewCmd);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mousedown', handleGlobalMouseDown);
+      window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('webview-cmd-key', handleWebviewCmd);
     };
-  }, []);
+
+  }, [isWebviewReady]);
 
   useEffect(() => {
-    loadSpecs();
-
     const handleWebviewHover = (e: any) => {
       const currentConfig = configRef.current;
       if (!currentConfig.enabled || !currentConfig.showHover || currentConfig.mode !== 'spec') {
@@ -184,46 +215,49 @@ const GTMAssistant: React.FC<Props> = ({ webviewRef, config, setConfig }) => {
       const currentConfig = configRef.current;
 
       // Resend current state on DOM ready to ensure preload has latest mode
-      const isSpecActive = currentConfig.enabled && (currentConfig.mode === 'spec' || currentConfig.mode === 'view');
-      // spec 모드에서 cmd를 누르고 있을 때만 selection 활성화
+      const isSpecActive = currentConfig.enabled && currentConfig.mode === 'spec';
       const isSelectionEnabled = currentConfig.enabled && currentConfig.mode === 'spec' && isCmdPressedRef.current;
 
-      try {
-        webviewRef.current?.send('set-spec-mode', isSpecActive);
-        webviewRef.current?.send('set-selection-enabled', isSelectionEnabled);
-      } catch (e) { /* ignore */ }
-      
-      // 페이지 로드 시 스펙 다시 불러오기 (URL이 이미 변경되었을 수 있음)
-      loadSpecs();
+      sendToWebview('set-spec-mode', isSpecActive);
+      sendToWebview('set-selection-enabled', isSelectionEnabled);
+      window.electronAPI.send('set-spec-mode-main', currentConfig.enabled && currentConfig.mode === 'spec');
     };
 
-    const handleNavigate = (event: any) => {
-      loadSpecs(event.url);
+    const handleWebviewTitle = (e: any) => {
+      setCurrentTitle(e.detail);
     };
 
-    webviewRef.current?.addEventListener('did-navigate', handleNavigate);
-    webviewRef.current?.addEventListener('did-navigate-in-page', handleNavigate);
+    const handleWebviewEvent = (e: any) => {
+      const { channel, args } = e.detail || {};
+      if (channel === 'did-navigate' || channel === 'did-navigate-in-page') {
+        loadSpecsForUrl(args[0].url);
+      }
+    };
+
+    // App.tsx에서 forward하는 custom event들 구독
     window.addEventListener('webview-element-hover', handleWebviewHover);
     window.addEventListener('webview-element-click', handleWebviewClick);
     window.addEventListener('webview-dom-ready', handleDomReady);
+    window.addEventListener('webview-title-updated', handleWebviewTitle);
+    window.addEventListener('webview-event-internal', handleWebviewEvent);
 
     return () => {
-      webviewRef.current?.removeEventListener('did-navigate', handleNavigate);
-      webviewRef.current?.removeEventListener('did-navigate-in-page', handleNavigate);
       window.removeEventListener('webview-element-hover', handleWebviewHover);
       window.removeEventListener('webview-element-click', handleWebviewClick);
       window.removeEventListener('webview-dom-ready', handleDomReady);
+      window.removeEventListener('webview-title-updated', handleWebviewTitle);
+      window.removeEventListener('webview-event-internal', handleWebviewEvent);
     };
-  }, []);
+  }, [isWebviewReady]);
 
-  const setMode = async (mode: 'spec' | 'verify' | 'view') => {
+  const setMode = async (mode: 'spec' | 'verify') => {
     const newConfig = { ...config, mode };
     setConfig(newConfig);
     await storage.setConfig(newConfig);
   };
 
   const refreshSpecs = async () => {
-    await loadSpecs();
+    if (currentUrl) await loadSpecsForUrl(currentUrl);
   };
 
   const updateConfig = async (updates: Partial<AppConfig>) => {
@@ -231,8 +265,6 @@ const GTMAssistant: React.FC<Props> = ({ webviewRef, config, setConfig }) => {
     setConfig(newConfig);
     await storage.setConfig(newConfig);
   };
-
-  if (!config) return null;
 
   return (
     <GTMAssistantContext.Provider value={{
@@ -249,15 +281,16 @@ const GTMAssistant: React.FC<Props> = ({ webviewRef, config, setConfig }) => {
       editingSpec,
       setEditingSpec,
       updateConfig,
-      webviewRef,
       isWebviewReady,
       externalSpecs,
       setExternalSpecs,
       gtmJson,
       setGtmJson,
       currentUrl,
+      currentTitle,
       isDrawerOpen,
-      setIsDrawerOpen
+      setIsDrawerOpen,
+      sendToWebview
     }}>
       <div className="gtm-assistant-inner" id="gtm-assistant-inner">
         {config.enabled && (

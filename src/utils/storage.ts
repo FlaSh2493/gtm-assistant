@@ -1,15 +1,6 @@
+/// <reference path="../renderer/electron.d.ts" />
 import { AppConfig, EventSpec } from '../types';
 
-declare global {
-  interface Window {
-    electronAPI: {
-      invoke: (channel: string, ...args: any[]) => Promise<any>;
-      on: (channel: string, func: (...args: any[]) => void) => void;
-      send: (channel: string, ...args: any[]) => void;
-      getPreloadPath: (filename: string) => string;
-    };
-  }
-}
 
 export const STORAGE_KEYS = {
   CONFIG: 'config',

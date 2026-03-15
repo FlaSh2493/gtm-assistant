@@ -8,12 +8,13 @@ import { useCSVExport } from '../hooks/useCSVExport';
 import { useGtmExport } from '../hooks/useGtmExport';
 
 const SpecList: React.FC = () => {
-  const { specs, refreshSpecs, setSelectedElement, setEditingSpec, webviewRef, config } = useGTMAssistant();
+  const { specs, refreshSpecs, setSelectedElement, setEditingSpec, config, currentUrl } = useGTMAssistant();
   const { exportCSV } = useCSVExport();
   const { exportGtmJson } = useGtmExport();
 
-  const currentUrl = webviewRef.current?.getURL() || '';
   const currentHostname = currentUrl ? new URL(currentUrl).hostname : 'localhost';
+
+
 
   const handleDelete = async (id: string) => {
     if (confirm('정말 삭제하시겠습니까?')) {

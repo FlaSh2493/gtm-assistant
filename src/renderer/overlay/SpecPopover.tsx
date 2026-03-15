@@ -1,13 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGTMAssistant } from '../GTMAssistant';
 import { EventParameter, EventSpec } from '../../types';
 import { storage } from '../../utils/storage';
 import { v4 as uuidv4 } from 'uuid';
-import { X, Plus, Trash2, CheckCircle, Settings, Sparkles, Copy, Check } from 'lucide-react';
+import { X, Plus, Trash2, Settings, Sparkles, Copy, Check } from 'lucide-react';
 
 
 const SpecPopover: React.FC = () => {
-  const { selectedElement, setSelectedElement, refreshSpecs, editingSpec, setEditingSpec, specs, webviewRef, config } = useGTMAssistant();
+  const { selectedElement, setSelectedElement, refreshSpecs, editingSpec, setEditingSpec, specs, config, currentUrl } = useGTMAssistant();
   const [form, setForm] = useState<Partial<EventSpec>>({
     eventType: 'element',
     pageUrl: '',
@@ -20,8 +20,6 @@ const SpecPopover: React.FC = () => {
     note: '',
   });
 
-  const [selectorValid, setSelectorValid] = useState(true);
-  
   // For Multi-Event support
   const [relatedSpecs, setRelatedSpecs] = useState<EventSpec[]>([]);
   const [activeSpecId, setActiveSpecId] = useState<string | null>(null);
@@ -66,7 +64,7 @@ const SpecPopover: React.FC = () => {
         // OR we send a message to webview to generate it for us.
         // For now, let's assume 'selector' might be in selectedElement if pre-calculated, 
         // or we just use a placeholder.
-        const currentUrl = webviewRef.current?.getURL() || '';
+        const currentUrlVal = currentUrl || '';
         const selector = selectedElement.selector || 'pending...';
         
         // Check for existing specs on this selector
@@ -82,7 +80,7 @@ const SpecPopover: React.FC = () => {
           setForm({ 
             eventType: 'element',
             selector,
-            pageUrl: currentUrl,
+            pageUrl: currentUrlVal,
             elementSnapshot: selectedElement.outerHTML?.substring(0, 500),
             id: undefined,
             createdAt: undefined,
@@ -96,12 +94,7 @@ const SpecPopover: React.FC = () => {
     };
 
     initForm();
-  }, [selectedElement, editingSpec, specs, webviewRef]);
-
-  // Selector validation is tricky in webview - omit for now or Implement via IPC
-  useEffect(() => {
-    setSelectorValid(true);
-  }, [form.selector]);
+  }, [selectedElement, editingSpec, specs, currentUrl]);
 
   const handleSwitchSpec = (id: string) => {
     const target = relatedSpecs.find(s => s.id === id);
@@ -111,7 +104,7 @@ const SpecPopover: React.FC = () => {
     }
   };
 
-  const currentHostname = webviewRef.current ? new URL(webviewRef.current.getURL()).hostname : 'localhost';
+  const currentHostname = currentUrl ? new URL(currentUrl).hostname : 'localhost';
 
   const handleAddNewEvent = () => {
     setActiveSpecId('new');
@@ -119,7 +112,7 @@ const SpecPopover: React.FC = () => {
       id: undefined,
       eventType: 'custom',
       selector: form.selector,
-      pageUrl: webviewRef.current?.getURL() || '',
+      pageUrl: currentUrl || '',
       elementSnapshot: form.elementSnapshot,
       eventId: '',
       eventName: '',
@@ -193,15 +186,13 @@ const SpecPopover: React.FC = () => {
                             #{idx + 1}
                         </button>
                     ))}
-                    {config.mode !== 'view' && (
-                      <button 
-                          className={`event-tab add ${activeSpecId === 'new' ? 'active' : ''}`}
-                          onClick={handleAddNewEvent}
-                          title="다른 이벤트 추가"
-                      >
-                          <Plus size={12} />
-                      </button>
-                    )}
+                    <button
+                        className={`event-tab add ${activeSpecId === 'new' ? 'active' : ''}`}
+                        onClick={handleAddNewEvent}
+                        title="다른 이벤트 추가"
+                    >
+                        <Plus size={12} />
+                    </button>
                 </div>
             )}
         </div>
@@ -220,8 +211,7 @@ const SpecPopover: React.FC = () => {
               type="text" 
               value={form.pageUrl} 
               onChange={e => setForm(prev => ({ ...prev, pageUrl: e.target.value }))}
-              disabled={config.mode === 'view'}
-            />
+                          />
             <button 
               type="button" 
               className="action-icon-btn" 
@@ -241,8 +231,7 @@ const SpecPopover: React.FC = () => {
                     placeholder="EVT-001"
                     value={form.eventId} 
                     onChange={e => setForm(prev => ({ ...prev, eventId: e.target.value }))}
-                    disabled={config.mode === 'view'}
-                />
+                                    />
             </div>
             <div className="form-group">
                 <label>GA4 이벤트명</label>
@@ -251,8 +240,7 @@ const SpecPopover: React.FC = () => {
                     placeholder="click_button"
                     value={form.eventName} 
                     onChange={e => setForm(prev => ({ ...prev, eventName: e.target.value }))}
-                    disabled={config.mode === 'view'}
-                />
+                                    />
             </div>
         </div>
         
@@ -263,8 +251,7 @@ const SpecPopover: React.FC = () => {
             placeholder={form.eventType === 'page' ? '페이지 로드 시' : '상품 상세 페이지 혹은 버튼 클릭 시'}
             value={form.triggerDescription || ''} 
             onChange={e => setForm(prev => ({ ...prev, triggerDescription: e.target.value }))}
-            disabled={config.mode === 'view'}
-          />
+                      />
         </div>
 
 
@@ -272,26 +259,21 @@ const SpecPopover: React.FC = () => {
           <div className="form-group">
             <div className="label-with-badge">
               <label>대상 요소 위치 (Selector)</label>
-              {config.mode !== 'view' && (
-                <button 
-                  type="button"
-                  className={`recommend-toggle-badge ${showRecommendations ? 'active' : ''}`}
-                  onClick={() => setShowRecommendations(!showRecommendations)}
-                >
-                  <Sparkles size={11} /> 추천
-                </button>
-              )}
+              <button
+                type="button"
+                className={`recommend-toggle-badge ${showRecommendations ? 'active' : ''}`}
+                onClick={() => setShowRecommendations(!showRecommendations)}
+              >
+                <Sparkles size={11} /> 추천
+              </button>
             </div>
             <div className="selector-input-wrapper">
-              <input 
-                type="text" 
-                className={selectorValid ? '' : 'invalid'}
-                value={form.selector} 
+              <input
+                type="text"
+                value={form.selector}
                 onChange={e => setForm(prev => ({ ...prev, selector: e.target.value }))}
                 placeholder="CSS Selector"
-                disabled={config.mode === 'view'}
-              />
-              {selectorValid && <CheckCircle size={16} className="valid-icon" />}
+                              />
             </div>
 
             {showRecommendations && (
@@ -337,49 +319,37 @@ const SpecPopover: React.FC = () => {
                       placeholder="키 (아이템ID)"
                       value={p.key}
                       onChange={e => handleParamChange(i, 'key', e.target.value)}
-                      disabled={config.mode === 'view'}
-                  />
+                                        />
                   <input
                       type="text"
                       className="param-value-input"
                       placeholder="설명"
                       value={p.description || ''}
                       onChange={e => handleParamChange(i, 'description', e.target.value)}
-                      disabled={config.mode === 'view'}
-                  />
-                  {config.mode !== 'view' && (
-                    <div className="param-actions">
-                      <button className="remove-param-btn" onClick={() => handleRemoveParam(i)}>
-                          <Trash2 size={14} />
-                      </button>
-                    </div>
-                  )}
+                                        />
+                  <div className="param-actions">
+                    <button className="remove-param-btn" onClick={() => handleRemoveParam(i)}>
+                        <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
             ))}
           </div>
-          {config.mode !== 'view' && (
-            <button className="add-param-btn" onClick={handleAddParam}>
-              <Plus size={14} /> 매개변수 직접 추가
-            </button>
-          )}
+          <button className="add-param-btn" onClick={handleAddParam}>
+            <Plus size={14} /> 매개변수 직접 추가
+          </button>
         </div>
       </div>
 
       <div className="popover-footer">
-        {form.id && config.mode !== 'view' && (
+        {form.id && (
             <button className="delete-btn" onClick={handleDelete}>
                 <Trash2 size={14} /> 삭제
             </button>
         )}
         <div style={{ flex: 1 }}></div>
-        {config.mode === 'view' ? (
-          <button className="cancel-btn" onClick={handleClose}>닫기</button>
-        ) : (
-          <>
-            <button className="cancel-btn" onClick={handleClose}>취소</button>
-            <button className="save-btn" onClick={handleSave}>저장</button>
-          </>
-        )}
+        <button className="cancel-btn" onClick={handleClose}>취소</button>
+        <button className="save-btn" onClick={handleSave}>저장</button>
       </div>
     </div>
   );
