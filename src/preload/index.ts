@@ -19,9 +19,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateUIBounds: (bounds: any[]) => {
     ipcRenderer.send('update-ui-bounds', bounds);
   },
-  setFocusable: (focusable: boolean) => {
-    ipcRenderer.send('set-focusable', focusable);
-  },
   doWebviewAction: (action: string) => {
 
     ipcRenderer.send('webview-action', { action });
@@ -39,8 +36,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   relayScroll: (x: number, y: number, deltaX: number, deltaY: number) => {
     ipcRenderer.send('relay-scroll', { x, y, deltaX, deltaY });
   },
-  setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => {
-    ipcRenderer.send('set-ignore-mouse-events', ignore, options);
-  }
 });
 

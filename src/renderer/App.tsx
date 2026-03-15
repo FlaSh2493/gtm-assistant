@@ -138,7 +138,6 @@ const App: React.FC = () => {
     setInputUrl('');
     // 홈으로 갈 때는 웹뷰를 화면 밖으로 치우거나 크기를 0으로 만듦
     window.electronAPI.updateWebviewBounds({ x: 0, y: 0, width: 0, height: 0 });
-    window.electronAPI.setIgnoreMouseEvents(false); // 홈 화면에서는 일반 클릭 허용
   };
 
 

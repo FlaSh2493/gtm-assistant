@@ -150,7 +150,6 @@ const GTMAssistant: React.FC<Props> = ({ config, setConfig }) => {
     };
 
     const handleGlobalMouseDown = (e: MouseEvent) => {
-      if (!configRef.current.enabled || configRef.current.mode !== 'spec') return;
       // UI 요소(팝오버, 드로어 등) 위에 있으면 guestView에 inject하지 않음
       const target = e.target as HTMLElement;
       if (target.closest('.popover-overlay, .drawer-container, .spec-popover, .pageview-badge, .verification-overlay-content, .gtm-spec-label-container')) return;
