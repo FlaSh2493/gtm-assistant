@@ -9,18 +9,16 @@ const PRELOAD_VERSION = '1.0.5-shield';
 const canUseIpc = process.isMainFrame;
 
 if (!canUseIpc) {
-  // 서브프레임에서는 IPC 불가 - postMessage 브릿지만 사용
   console.log(`[GTM GA Assistant] Subframe without IPC: ${window.location.href}`);
 }
 console.log(`🚀 [GTM GA Assistant] Webview Preload Injected v${PRELOAD_VERSION} (${isTopFrame ? 'Top Frame' : 'Subframe: ' + window.location.href})`);
 
-// 클릭 차단 여부 - spec 모드일 때 true. 기본값은 false로 설정 (안전성).
 let specModeActive = false;
 let selectionEnabled = false;
 let lastHoveredElement: HTMLElement | null = null;
-let hoverDebounceTimeout: any = null;
+let hoverDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
 let rafId: number | null = null;
-let lastSentRects: string = ''; // JSON stringified for easy deep comparison
+let lastSentRects: string = '';
 
 if (canUseIpc) ipcRenderer.on('set-spec-mode', (_event, active: boolean) => {
   specModeActive = active;
@@ -32,8 +30,8 @@ const ensureSelectionStyle = (enabled: boolean) => {
     if (!styleEl) {
       styleEl = document.createElement('style');
       styleEl.id = 'gtm-assistant-selection-style';
-      // Force pointer-events and change cursor for better feedback
-      styleEl.textContent = `* { pointer-events: auto !important; }`;
+      // Only override pointer-events on elements that block interaction for non-functional reasons
+      styleEl.textContent = `body * { pointer-events: auto !important; }`;
       document.head.appendChild(styleEl);
     }
   } else {
@@ -51,78 +49,99 @@ let iframeOffsetX = 0;
 let iframeOffsetY = 0;
 
 if (!isTopFrame) {
-  // 1. Send request to top frame
-  window.top?.postMessage({ type: 'GTM_ASSISTANT_GET_OFFSET' }, '*');
-  
-  // 2. Listen for response from parent frames
+  const requestOffset = () => window.top?.postMessage({ type: 'GTM_ASSISTANT_GET_OFFSET' }, '*');
+
   window.addEventListener('message', (e) => {
     if (e.data?.type === 'GTM_ASSISTANT_OFFSET_RESPONSE') {
       iframeOffsetX = e.data.x;
       iframeOffsetY = e.data.y;
     }
   });
+
+  // Request immediately; retry after DOM is ready to handle timing races
+  requestOffset();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', requestOffset);
+  }
 }
 
-// 3. Top frame (or parent) listens for request and calculates
+// Top frame (or parent) listens for offset requests and calculates absolute position
 window.addEventListener('message', (e) => {
-  if (e.data?.type === 'GTM_ASSISTANT_GET_OFFSET') {
-    // Find which iframe sent the message
-    const iframes = document.querySelectorAll('iframe');
-    let senderIframe: HTMLIFrameElement | null = null;
-    
-    for (const iframe of Array.from(iframes)) {
-      if (iframe.contentWindow === e.source) {
-        senderIframe = iframe;
-        break;
-      }
-    }
+  if (e.data?.type !== 'GTM_ASSISTANT_GET_OFFSET') return;
 
-    if (senderIframe) {
-      const rect = senderIframe.getBoundingClientRect();
+  const iframes = document.querySelectorAll('iframe');
+  for (const iframe of Array.from(iframes)) {
+    if (iframe.contentWindow === e.source) {
+      const rect = iframe.getBoundingClientRect();
       const parentOffsetX = isTopFrame ? 0 : iframeOffsetX;
       const parentOffsetY = isTopFrame ? 0 : iframeOffsetY;
-      
-      const totalX = rect.left + parentOffsetX;
-      const totalY = rect.top + parentOffsetY;
-
-      // Send the absolute offset back to that specific iframe
-      senderIframe.contentWindow?.postMessage({
+      iframe.contentWindow?.postMessage({
         type: 'GTM_ASSISTANT_OFFSET_RESPONSE',
-        x: totalX,
-        y: totalY
+        x: rect.left + parentOffsetX,
+        y: rect.top + parentOffsetY,
       }, '*');
+      break;
     }
   }
 });
 
-const getIframeOffset = () => {
-  return { x: iframeOffsetX, y: iframeOffsetY };
-};
+const getIframeOffset = () => ({ x: iframeOffsetX, y: iframeOffsetY });
+
+// Shared data attribute list used by both getSelector and getSelectorRecommendations
+const DATA_ATTRS = ['data-testid', 'data-cy', 'data-action', 'data-analytics', 'data-id', 'data-name', 'data-gtm-id'];
+
+const cssEscape = (val: string): string =>
+  window.CSS?.escape ? window.CSS.escape(val) : val.replace(/([!"#$%&'()*+,.\/:;<=>?@\[\\\]^`{|}~])/g, '\\$1');
 
 const isUnique = (selector: string): boolean => {
   try {
     return document.querySelectorAll(selector).length === 1;
-  } catch (e) {
+  } catch {
     return false;
   }
 };
 
-const getSelectorRecommendations = (element: HTMLElement): string[] => {
+// Returns the primary selector for an element. Prefers stable attributes over DOM path.
+const getSelector = (element: HTMLElement): string => {
+  if (element.id && !/^\d/.test(element.id)) return `#${cssEscape(element.id)}`;
+  for (const attr of DATA_ATTRS) {
+    const val = element.getAttribute(attr);
+    if (val) return `[${attr}="${val.replace(/"/g, '\\"')}"]`;
+  }
+
+  const path: string[] = [];
+  let cur: HTMLElement | null = element;
+  while (cur && cur.nodeType === Node.ELEMENT_NODE) {
+    let seg = cur.nodeName.toLowerCase();
+    if (cur.parentElement) {
+      const siblings = Array.from(cur.parentElement.children).filter(e => e.nodeName === cur!.nodeName);
+      if (siblings.length > 1) seg += `:nth-of-type(${siblings.indexOf(cur) + 1})`;
+    }
+    path.unshift(seg);
+    cur = cur.parentElement as HTMLElement | null;
+    if (cur?.nodeName === 'BODY' || cur?.nodeName === 'HTML') break;
+  }
+  return path.join(' > ');
+};
+
+// Returns up to 6 unique selector candidates. Accepts precomputed selector to avoid double traversal.
+const getSelectorRecommendations = (element: HTMLElement, precomputed?: string): string[] => {
   const recommendations: string[] = [];
   const tagName = element.tagName.toLowerCase();
-  const escape = (val: string) => (window.CSS && window.CSS.escape ? window.CSS.escape(val) : val.replace(/([!"#$%&'()*+,.\/:;<=>?@\[\\\]^`{|}~])/g, '\\$1'));
 
-  // 1. ID
+  // 1. ID — if unique, no need to continue
   if (element.id) {
-    const idSelector = `#${escape(element.id)}`;
-    if (isUnique(idSelector)) recommendations.push(idSelector);
+    const idSelector = `#${cssEscape(element.id)}`;
+    if (isUnique(idSelector)) {
+      recommendations.push(idSelector);
+      return recommendations; // ID is already unique; skip rest
+    }
     const idAttrSelector = `[id="${element.id.replace(/"/g, '\\"')}"]`;
     if (isUnique(idAttrSelector)) recommendations.push(idAttrSelector);
   }
 
   // 2. Data Attributes
-  const dataAttrs = ['data-testid', 'data-cy', 'data-action', 'data-analytics', 'data-id', 'data-name', 'data-gtm-id'];
-  for (const attr of dataAttrs) {
+  for (const attr of DATA_ATTRS) {
     const val = element.getAttribute(attr);
     if (val) {
       const attrSelector = `[${attr}="${val.replace(/"/g, '\\"')}"]`;
@@ -134,110 +153,80 @@ const getSelectorRecommendations = (element: HTMLElement): string[] => {
   if (element.className && typeof element.className === 'string') {
     const classes = element.className.split(/\s+/).filter(c => c && !c.includes(':') && !/^[0-9]/.test(c));
     for (const cls of classes) {
-      const classSelector = `.${escape(cls)}`;
+      const classSelector = `.${cssEscape(cls)}`;
       if (isUnique(classSelector)) recommendations.push(classSelector);
-      const tagClass = `${tagName}.${escape(cls)}`;
+      const tagClass = `${tagName}.${cssEscape(cls)}`;
       if (isUnique(tagClass)) recommendations.push(tagClass);
     }
     if (classes.length >= 2) {
-      const combined = `.${classes.slice(0, 2).map(escape).join('.')}`;
+      const combined = `.${classes.slice(0, 2).map(cssEscape).join('.')}`;
       if (isUnique(combined)) recommendations.push(combined);
     }
   }
 
-  // 4. Hierarchical Fallback
-  const fallback = getSelector(element);
+  // 4. Hierarchical fallback — reuse precomputed selector to avoid redundant DOM traversal
+  const fallback = precomputed ?? getSelector(element);
   if (fallback) recommendations.push(fallback);
 
-  return [...new Set(recommendations)].slice(0, 6);
-};
-
-const getSelector = (element: HTMLElement): string => {
-  if (element.id && !/^\d/.test(element.id)) return `#${element.id}`;
-  const dataAttrs = ['data-testid', 'data-cy', 'data-action'];
-  for (const attr of dataAttrs) {
-    const val = element.getAttribute(attr);
-    if (val) return `[${attr}="${val}"]`;
-  }
-
-  const path: string[] = [];
-  let cur: HTMLElement | null = element;
-  while (cur && cur.nodeType === Node.ELEMENT_NODE) {
-    let selector = cur.nodeName.toLowerCase();
-    if (cur.parentElement) {
-      const siblings = Array.from(cur.parentElement.children).filter(e => e.nodeName === cur!.nodeName);
-      if (siblings.length > 1) {
-        const index = siblings.indexOf(cur) + 1;
-        selector += `:nth-of-type(${index})`;
-      }
-    }
-    path.unshift(selector);
-    cur = cur.parentElement as HTMLElement | null;
-    if (cur?.nodeName === 'BODY' || cur?.nodeName === 'HTML') break;
-  }
-  return path.join(' > ');
+  return [...new Set(recommendations)].filter(Boolean).slice(0, 6);
 };
 
 const getOffsetRect = (el: HTMLElement) => {
-  const offset = getIframeOffset();
+  const { x, y } = getIframeOffset();
   const rect = el.getBoundingClientRect();
   return {
-    top: rect.top + offset.y,
-    left: rect.left + offset.x,
+    top: rect.top + y,
+    left: rect.left + x,
     width: rect.width,
     height: rect.height,
-    bottom: rect.bottom + offset.y,
-    right: rect.right + offset.x,
-    x: rect.x + offset.x,
-    y: rect.y + offset.y,
+    bottom: rect.bottom + y,
+    right: rect.right + x,
+    x: rect.x + x,
+    y: rect.y + y,
   };
 };
 
-const handleHover = (target: HTMLElement, includeRecommendations: boolean = true) => {
+const handleHover = (target: HTMLElement, includeRecommendations = true) => {
   if (!canUseIpc) return;
+  const selector = includeRecommendations ? getSelector(target) : '';
   ipcRenderer.send('webview-ipc-relay', 'webview-hover', {
     tagName: target.tagName,
     className: target.className,
     id: target.id,
     rect: getOffsetRect(target),
-    selector: includeRecommendations ? getSelector(target) : '',
-    recommendations: includeRecommendations ? getSelectorRecommendations(target) : [],
+    selector,
+    recommendations: includeRecommendations ? getSelectorRecommendations(target, selector) : [],
     isSubframe: !isTopFrame,
     frameUrl: window.location.href,
-    isPartial: !includeRecommendations
+    isPartial: !includeRecommendations,
   });
 };
 
 const handleClick = (target: HTMLElement) => {
   if (!canUseIpc) return;
+  const selector = getSelector(target);
   ipcRenderer.send('webview-ipc-relay', 'webview-click', {
     tagName: target.tagName,
     rect: getOffsetRect(target),
-    outerHTML: target.outerHTML.substring(0, 1000),
-    selector: getSelector(target),
-    recommendations: getSelectorRecommendations(target),
+    outerHTML: target.outerHTML.substring(0, 500),
+    selector,
+    recommendations: getSelectorRecommendations(target, selector),
     isSubframe: !isTopFrame,
-    frameUrl: window.location.href
+    frameUrl: window.location.href,
   });
 };
 
 // --- Event Listeners (Capturing Phase) ---
 
 document.addEventListener('pointermove', (e) => {
-  // selectionEnabled는 set-selection-enabled IPC로만 관리 (e.metaKey로 변경 금지 - 루프 방지)
-  if (!selectionEnabled) {
-    if (!specModeActive && e.target) {
-      handleHover(e.target as HTMLElement);
-    }
-    return;
-  }
+  // Only process pointer moves when selection mode is active (cmd held in spec mode)
+  if (!selectionEnabled) return;
 
   if (rafId) return;
   rafId = requestAnimationFrame(() => {
     rafId = null;
     const elements = document.elementsFromPoint(e.clientX, e.clientY);
-    const rawTarget = elements.find(el => el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT') as HTMLElement | undefined;
-    const target = rawTarget as HTMLElement;
+    const target = elements.find(el => el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT') as HTMLElement | undefined;
 
     if (target && target !== document.documentElement && target !== document.body) {
       if (target !== lastHoveredElement) {
@@ -246,15 +235,13 @@ document.addEventListener('pointermove', (e) => {
 
         if (hoverDebounceTimeout) clearTimeout(hoverDebounceTimeout);
         hoverDebounceTimeout = setTimeout(() => {
-          if (lastHoveredElement === target) {
-            handleHover(target, true);
-          }
+          if (lastHoveredElement === target) handleHover(target, true);
         }, 150);
       }
     } else {
       if (lastHoveredElement) {
         lastHoveredElement = null;
-        if (canUseIpc) ipcRenderer.send('webview-ipc-relay', 'webview-hover', null);
+        ipcRenderer.send('webview-ipc-relay', 'webview-hover', null);
       }
     }
   });
@@ -271,10 +258,10 @@ document.addEventListener('pointerdown', (e) => {
   blockEventInSpecMode(e);
 
   if (!selectionEnabled || !e.metaKey) return;
-  
+
   const rawTarget = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement;
   const target = rawTarget?.closest('a, button, input, select, textarea') || rawTarget;
-  
+
   if (target && target !== document.documentElement && target !== document.body) {
     handleClick(target as HTMLElement);
     e.preventDefault();
@@ -288,12 +275,10 @@ document.addEventListener('click', blockEventInSpecMode, true);
 // IPC Handler for messages from renderer
 if (canUseIpc) ipcRenderer.on('highlight-element', (_event, selector) => {
   const el = document.querySelector(selector);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 
-// Meta(Cmd) 키 상태를 renderer에 전달 (webview 포커스 중에도 cmd 감지)
+// Meta(Cmd) key state relay (webview-focused keyboard events)
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Meta') {
     if (canUseIpc) ipcRenderer.send('webview-ipc-relay', 'webview-cmd-key', { pressed: true });
@@ -315,13 +300,20 @@ document.addEventListener('keyup', (e) => {
   }
 });
 
-
-// DOM mutation detection: notify renderer when layout-affecting changes occur (e.g. modal open/close)
+// DOM mutation detection: notify renderer when layout may have changed (e.g. modal open/close)
 if (canUseIpc) {
-  let mutationDebounce: any = null;
+  let mutationDebounce: ReturnType<typeof setTimeout> | null = null;
+
   const setupMutationObserver = () => {
     if (!document.body) return;
-    const observer = new MutationObserver(() => {
+    const observer = new MutationObserver((mutations) => {
+      // Only react to structural changes or style/class changes that affect layout
+      const relevant = mutations.some(m =>
+        m.type === 'childList' ||
+        (m.type === 'attributes' && (m.attributeName === 'style' || m.attributeName === 'class'))
+      );
+      if (!relevant) return;
+
       if (mutationDebounce) clearTimeout(mutationDebounce);
       mutationDebounce = setTimeout(() => {
         ipcRenderer.send('webview-ipc-relay', 'dom-mutation', true);
@@ -337,8 +329,8 @@ if (canUseIpc) {
   }
 }
 
-// Scroll detection: notify renderer to hide overlays while scrolling
-let scrollEndTimeout: any = null;
+// Scroll detection: notify renderer while scrolling
+let scrollEndTimeout: ReturnType<typeof setTimeout> | null = null;
 window.addEventListener('scroll', () => {
   if (!canUseIpc) return;
   ipcRenderer.send('webview-ipc-relay', 'webview-scrolling', true);
@@ -348,10 +340,17 @@ window.addEventListener('scroll', () => {
   }, 150);
 }, { capture: true, passive: true });
 
-// Returns the visible rect of an element after clipping against all scroll/overflow ancestors.
-// Returns null if the element is fully clipped (not visible).
+// Cleanup pending async operations on page unload
+window.addEventListener('beforeunload', () => {
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  if (scrollEndTimeout) { clearTimeout(scrollEndTimeout); scrollEndTimeout = null; }
+  if (hoverDebounceTimeout) { clearTimeout(hoverDebounceTimeout); hoverDebounceTimeout = null; }
+});
+
+// Returns the visible rect of an element after clipping against viewport and overflow ancestors.
+// Returns null if fully clipped (not visible).
 const getClippedRect = (el: HTMLElement): { top: number; left: number; width: number; height: number } | null => {
-  let r = el.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
   let clipped = { top: r.top, left: r.left, right: r.right, bottom: r.bottom };
 
   // Clip against viewport
@@ -363,7 +362,7 @@ const getClippedRect = (el: HTMLElement): { top: number; left: number; width: nu
   };
   if (clipped.right <= clipped.left || clipped.bottom <= clipped.top) return null;
 
-  // Clip against each scroll/overflow ancestor
+  // Clip against scroll/overflow ancestors
   let parent = el.parentElement;
   while (parent && parent !== document.documentElement) {
     const style = window.getComputedStyle(parent);
@@ -392,39 +391,44 @@ const getClippedRect = (el: HTMLElement): { top: number; left: number; width: nu
 if (canUseIpc) ipcRenderer.on('get-rects', (_event, selectors: string[]) => {
   const rects: Record<string, any> = {};
   const offset = getIframeOffset();
-  lastSentRects = ''; // 항상 최신 rects를 전송 (캐시 무효화)
+  lastSentRects = ''; // 매 요청마다 항상 최신 rects를 전송
 
   selectors.forEach(selector => {
     try {
       const el = document.querySelector(selector) as HTMLElement;
-      if (el) {
-        const visible = getClippedRect(el);
-        if (visible && visible.width > 0 && visible.height > 0) {
-          // 모달/오버레이가 덮고 있으면 숨김: 요소 중심점에서 elementFromPoint로 확인
-          const centerX = visible.left + visible.width / 2;
-          const centerY = visible.top + visible.height / 2;
-          const topEl = document.elementFromPoint(centerX, centerY);
-          const isCovered = topEl !== null && !el.contains(topEl) && !topEl.contains(el);
-          if (isCovered) return;
+      if (!el) return;
 
-          rects[selector] = {
-            top: Math.round(visible.top + offset.y),
-            left: Math.round(visible.left + offset.x),
-            width: Math.round(visible.width),
-            height: Math.round(visible.height),
-            borderRadius: window.getComputedStyle(el).borderRadius
-          };
-        }
-      }
-    } catch (e) { /* ignore */ }
+      const visible = getClippedRect(el);
+      if (!visible || visible.width <= 0 || visible.height <= 0) return;
+
+      // Check if covered by another element (e.g. modal).
+      // Use both center and top-left corner: only hide if both points are covered
+      // to avoid false positives on thin/small elements.
+      const isCoveredAt = (x: number, y: number): boolean => {
+        const topEl = document.elementFromPoint(x, y);
+        return topEl !== null && !el.contains(topEl) && !topEl.contains(el);
+      };
+      const cx = visible.left + visible.width / 2;
+      const cy = visible.top + visible.height / 2;
+      const cornerX = visible.left + Math.min(4, visible.width / 2);
+      const cornerY = visible.top + Math.min(4, visible.height / 2);
+      if (isCoveredAt(cx, cy) && isCoveredAt(cornerX, cornerY)) return;
+
+      rects[selector] = {
+        top: Math.round(visible.top + offset.y),
+        left: Math.round(visible.left + offset.x),
+        width: Math.round(visible.width),
+        height: Math.round(visible.height),
+        borderRadius: window.getComputedStyle(el).borderRadius,
+      };
+    } catch (e) {
+      console.warn(`[GTM Assistant] Failed to process selector "${selector}":`, e);
+    }
   });
 
   const currentRectsStr = JSON.stringify(rects);
-  if (currentRectsStr === lastSentRects) {
-    return;
-  }
-  
+  if (currentRectsStr === lastSentRects) return;
+
   lastSentRects = currentRectsStr;
   ipcRenderer.send('webview-ipc-relay', 'rects-update', rects);
 });
-
