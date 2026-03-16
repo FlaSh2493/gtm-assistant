@@ -118,7 +118,7 @@ const App: React.FC = () => {
     }
   }, [showHome]);
 
-  const navigateTo = (url: string, mode?: 'spec' | 'verify') => {
+  const navigateTo = (url: string, mode?: 'spec') => {
     const targetUrl = resolveUrl(url);
     if (!targetUrl) return;
     setIsEditingUrl(false);

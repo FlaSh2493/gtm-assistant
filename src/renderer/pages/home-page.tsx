@@ -5,7 +5,7 @@ import GtmLogo from '../shared/ui/gtm-logo';
 import HomeGuide from '../widgets/home-guide';
 
 interface HomeScreenProps {
-  onNavigate: (url: string, mode?: 'spec' | 'verify') => void;
+  onNavigate: (url: string, mode?: 'spec') => void;
 }
 
 const HomePage: React.FC<HomeScreenProps> = ({ onNavigate }) => {
