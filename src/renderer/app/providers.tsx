@@ -191,7 +191,7 @@ export const GTMAssistantProvider: React.FC<Props> = ({ config, setConfig, child
   useEffect(() => {
     const handleWebviewHover = (e: any) => {
       const currentConfig = configRef.current;
-      if (!currentConfig.enabled || !currentConfig.showHover || currentConfig.mode !== 'spec') {
+      if (!currentConfig.enabled || !currentConfig.showHover || currentConfig.mode !== 'spec' || !isCmdPressedRef.current) {
         setHoveredElement(null);
         return;
       }
