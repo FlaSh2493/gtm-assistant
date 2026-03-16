@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useGTMAssistant } from '../../../app/providers';
 import { EventParameter, EventSpec } from '../../../entities/spec/model/types';
 import { storage } from '../../../shared/api/storage';
@@ -25,14 +25,20 @@ const SpecPopover: React.FC = () => {
   const [activeSpecId, setActiveSpecId] = useState<string | null>(null);
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCopyUrl = () => {
     if (form.pageUrl) {
       navigator.clipboard.writeText(form.pageUrl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  useEffect(() => {
+    return () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); };
+  }, []);
 
 
 

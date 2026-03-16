@@ -104,12 +104,6 @@ const AssistantDrawer: React.FC = () => {
                 >
                   명세 작성
                 </button>
-                {/* <button
-                  className={config.mode === 'verify' ? 'active' : ''}
-                  onClick={() => setMode('verify')}
-                >
-                  GTM 검수
-                </button> */}
               </div>
 
               <div className="page-info-panel">

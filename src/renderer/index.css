@@ -547,3 +547,19 @@ body,
   font-size: 12px;
   color: #94a3b8;
 }
+
+.gtm-spec-label {
+  background: linear-gradient(135deg, #f59e0b, #ea580c);
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}

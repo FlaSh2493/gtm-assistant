@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { AppConfig } from '../entities/config/model/types';
 import { EventSpec } from '../entities/spec/model/types';
 import { specStorage } from '../entities/spec/api/spec-storage';
@@ -42,6 +42,9 @@ interface GTMAssistantContextType {
 
 const GTMAssistantContext = createContext<GTMAssistantContextType | undefined>(undefined);
 
+// Pre-computed selector string for mousedown hit-testing (excludes .app-header)
+const MOUSE_DOWN_EXCLUDE_SELECTOR = INTERACTIVE_SELECTORS.filter(s => s !== '.app-header').join(', ');
+
 export const useGTMAssistant = () => {
   const context = useContext(GTMAssistantContext);
   if (!context) throw new Error('useGTMAssistant must be used within a GTMAssistantProvider');
@@ -74,7 +77,7 @@ export const GTMAssistantProvider: React.FC<Props> = ({ config, setConfig, child
     configRef.current = config;
   }, [config]);
 
-  const loadSpecsForUrl = async (url: string) => {
+  const loadSpecsForUrl = useCallback(async (url: string) => {
     if (!url || url === 'about:blank') return;
     setCurrentUrl(url);
 
@@ -85,24 +88,24 @@ export const GTMAssistantProvider: React.FC<Props> = ({ config, setConfig, child
     } catch (e) {
       console.warn('[GTMAssistant] loadSpecs failed:', e);
     }
-  };
+  }, []);
 
-  const sendToWebview = (channel: string, ...args: any[]) => {
+  const sendToWebview = useCallback((channel: string, ...args: any[]) => {
     if (!isWebviewReady) return;
     try {
       window.electronAPI.sendToWebview(channel, ...args);
     } catch (e) {
       console.warn(`[GTMAssistant] Failed to send to webview (${channel}):`, e);
     }
-  };
+  }, [isWebviewReady]);
 
-  const syncSpecModeToWebview = (cfg: AppConfig) => {
+  const syncSpecModeToWebview = useCallback((cfg: AppConfig) => {
     const isSpecActive = cfg.enabled && cfg.mode === 'spec';
     const isSelectionEnabled = isSpecActive && isCmdPressedRef.current;
     sendToWebview('set-spec-mode', isSpecActive);
     sendToWebview('set-selection-enabled', isSelectionEnabled);
     window.electronAPI.send('set-spec-mode-main', isSpecActive);
-  };
+  }, [sendToWebview]);
 
   // config가 바뀔 때마다 webview preload에 spec 모드 활성 여부를 전달
   useEffect(() => {
@@ -151,7 +154,7 @@ export const GTMAssistantProvider: React.FC<Props> = ({ config, setConfig, child
     const handleGlobalMouseDown = (e: MouseEvent) => {
       // UI 요소(팝오버, 드로어 등) 위에 있으면 guestView에 inject하지 않음
       const target = e.target as HTMLElement;
-      if (target.closest(INTERACTIVE_SELECTORS.filter(s => s !== '.app-header').join(', '))) return;
+      if (target.closest(MOUSE_DOWN_EXCLUDE_SELECTOR)) return;
       if (!webviewContainer) return;
       const rect = webviewContainer.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -237,46 +240,47 @@ export const GTMAssistantProvider: React.FC<Props> = ({ config, setConfig, child
     };
   }, [isWebviewReady]);
 
-  const updateConfig = async (updates: Partial<AppConfig>) => {
+  const updateConfig = useCallback(async (updates: Partial<AppConfig>) => {
     const newConfig = { ...config, ...updates };
     setConfig(newConfig);
-    // Use the backward compat import for now
     const { configStorage } = await import('../entities/config/api/config-storage');
     await configStorage.setConfig(newConfig);
-  };
+  }, [config]);
 
-  const setMode = async (mode: 'spec' | 'verify') => updateConfig({ mode });
+  const setMode = useCallback(async (mode: 'spec' | 'verify') => updateConfig({ mode }), [updateConfig]);
 
-  const refreshSpecs = async () => {
+  const refreshSpecs = useCallback(async () => {
     if (currentUrl) await loadSpecsForUrl(currentUrl);
-  };
+  }, [currentUrl, loadSpecsForUrl]);
+
+  const contextValue = useMemo(() => ({
+    config,
+    specs,
+    setMode,
+    refreshSpecs,
+    selectedElement,
+    setSelectedElement,
+    hoveredElement,
+    setHoveredElement,
+    showAllBadges,
+    setShowAllBadges,
+    editingSpec,
+    setEditingSpec,
+    updateConfig,
+    isWebviewReady,
+    externalSpecs,
+    setExternalSpecs,
+    gtmJson,
+    setGtmJson,
+    currentUrl,
+    currentTitle,
+    isDrawerOpen,
+    setIsDrawerOpen,
+    sendToWebview,
+  }), [config, specs, setMode, refreshSpecs, selectedElement, hoveredElement, showAllBadges, editingSpec, updateConfig, isWebviewReady, externalSpecs, gtmJson, currentUrl, currentTitle, isDrawerOpen, sendToWebview]);
 
   return (
-    <GTMAssistantContext.Provider value={{
-      config,
-      specs,
-      setMode,
-      refreshSpecs,
-      selectedElement,
-      setSelectedElement,
-      hoveredElement,
-      setHoveredElement,
-      showAllBadges,
-      setShowAllBadges,
-      editingSpec,
-      setEditingSpec,
-      updateConfig,
-      isWebviewReady,
-      externalSpecs,
-      setExternalSpecs,
-      gtmJson,
-      setGtmJson,
-      currentUrl,
-      currentTitle,
-      isDrawerOpen,
-      setIsDrawerOpen,
-      sendToWebview
-    }}>
+    <GTMAssistantContext.Provider value={contextValue}>
       {children}
     </GTMAssistantContext.Provider>
   );

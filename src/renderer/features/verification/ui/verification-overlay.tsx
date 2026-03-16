@@ -42,20 +42,16 @@ const VerificationOverlay: React.FC = () => {
       setElementRects(e.detail);
     };
 
-    const handleWebviewScroll = () => {
-      requestRects();
-    };
-
     window.addEventListener('rects-update', handleRectsUpdate);
-    window.addEventListener('webview-scrolling', handleWebviewScroll);
+    window.addEventListener('webview-scrolling', requestRects);
+    window.addEventListener('webview-dom-mutation', requestRects);
 
-    const interval = setInterval(requestRects, 1000);
     requestRects();
 
     return () => {
       window.removeEventListener('rects-update', handleRectsUpdate);
-      window.removeEventListener('webview-scrolling', handleWebviewScroll);
-      clearInterval(interval);
+      window.removeEventListener('webview-scrolling', requestRects);
+      window.removeEventListener('webview-dom-mutation', requestRects);
     };
   }, [config.mode, results, isWebviewReady, sendToWebview]);
 

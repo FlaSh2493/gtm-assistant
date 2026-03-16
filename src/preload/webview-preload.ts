@@ -316,6 +316,27 @@ document.addEventListener('keyup', (e) => {
 });
 
 
+// DOM mutation detection: notify renderer when layout-affecting changes occur (e.g. modal open/close)
+if (canUseIpc) {
+  let mutationDebounce: any = null;
+  const setupMutationObserver = () => {
+    if (!document.body) return;
+    const observer = new MutationObserver(() => {
+      if (mutationDebounce) clearTimeout(mutationDebounce);
+      mutationDebounce = setTimeout(() => {
+        ipcRenderer.send('webview-ipc-relay', 'dom-mutation', true);
+      }, 100);
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+  };
+
+  if (document.body) {
+    setupMutationObserver();
+  } else {
+    document.addEventListener('DOMContentLoaded', setupMutationObserver);
+  }
+}
+
 // Scroll detection: notify renderer to hide overlays while scrolling
 let scrollEndTimeout: any = null;
 window.addEventListener('scroll', () => {

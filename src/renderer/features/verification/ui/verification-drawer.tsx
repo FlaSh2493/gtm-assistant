@@ -63,38 +63,35 @@ const VerificationDrawer: React.FC = () => {
   };
 
   useEffect(() => {
+    let focusTimer: ReturnType<typeof setTimeout>;
+    let highlightTimer: ReturnType<typeof setTimeout>;
+
     const handleFocus = (e: any) => {
       const { eventName } = e.detail;
       if (!eventName) return;
 
-      // Reset filter to show all so we can find the item
       setFilter(null);
 
-      // Let React update the list first
-      setTimeout(() => {
+      focusTimer = setTimeout(() => {
         setExpandedId(eventName);
 
-        // Find element within our list container (Safe for Shadow DOM)
         const itemEl = listRef.current?.querySelector(`#v-item-${eventName}`) as HTMLElement;
         if (itemEl && listRef.current) {
-          // Calculate offset relative to list container
-          const targetOffset = itemEl.offsetTop - 20; // 20px padding/margin adjustment
+          listRef.current.scrollTo({ top: itemEl.offsetTop - 20, behavior: 'smooth' });
 
-          listRef.current.scrollTo({
-            top: targetOffset,
-            behavior: 'smooth'
-          });
-
-          // Visual highlight
           itemEl.style.backgroundColor = '#eff6ff';
           itemEl.style.transition = 'background-color 0.3s';
-          setTimeout(() => { itemEl.style.backgroundColor = ''; }, 2000);
+          highlightTimer = setTimeout(() => { itemEl.style.backgroundColor = ''; }, 2000);
         }
       }, 150);
     };
 
     window.addEventListener('gtm-assistant-focus-result', handleFocus);
-    return () => window.removeEventListener('gtm-assistant-focus-result', handleFocus);
+    return () => {
+      window.removeEventListener('gtm-assistant-focus-result', handleFocus);
+      clearTimeout(focusTimer);
+      clearTimeout(highlightTimer);
+    };
   }, [results]);
 
   const toggleExpand = (id: string) => {
@@ -184,6 +181,11 @@ const VerificationDrawer: React.FC = () => {
     );
   };
 
+  const statusCounts = results.reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] ?? 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   const filterConfigs: { status: VerificationResult['status']; label: string }[] = [
     { status: 'match', label: '일치' },
     { status: 'issue', label: '조치 필요' },
@@ -236,7 +238,7 @@ const VerificationDrawer: React.FC = () => {
 
         <div className="v-filter-bar">
           {filterConfigs.map(cfg => {
-            const count = results.filter(r => r.status === cfg.status).length;
+            const count = statusCounts[cfg.status] ?? 0;
             if (count === 0 && !filter) return null;
 
             return (

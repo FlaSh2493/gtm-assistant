@@ -4,6 +4,7 @@ import { EventSpec } from '../../../entities/spec/model/types';
 import { motion } from 'framer-motion';
 import { Tag } from 'lucide-react';
 
+
 interface GroupedSpec {
   selector: string;
   specs: EventSpec[];
@@ -58,43 +59,20 @@ const SpecOutline: React.FC = () => {
       setGroupedSpecs(newGroups);
     };
 
-    const handleWebviewScroll = () => {
-      requestRects();
-    };
-
-    // App.tsx에서 relay하는 custom event들 구독
     window.addEventListener('rects-update', handleRectsUpdate);
-    window.addEventListener('webview-scrolling', handleWebviewScroll);
+    window.addEventListener('webview-scrolling', requestRects);
+    window.addEventListener('webview-dom-mutation', requestRects);
 
-    // Initial request
     requestRects();
-
-    const interval = setInterval(requestRects, 300);
 
     return () => {
       window.removeEventListener('rects-update', handleRectsUpdate);
-      window.removeEventListener('webview-scrolling', handleWebviewScroll);
-      clearInterval(interval);
+      window.removeEventListener('webview-scrolling', requestRects);
+      window.removeEventListener('webview-dom-mutation', requestRects);
     };
   }, [specs, config.mode, showAllBadges, isWebviewReady, sendToWebview]);
 
   if (config.mode !== 'spec' || !showAllBadges || groupedSpecs.length === 0) return null;
-
-  const specLabelStyle: React.CSSProperties = {
-    background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
-    color: 'white',
-    fontSize: '11px',
-    fontWeight: 800,
-    padding: '4px 10px',
-    borderRadius: '6px',
-    whiteSpace: 'nowrap',
-    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    cursor: 'pointer',
-    border: '1px solid rgba(255,255,255,0.2)',
-  };
 
   const handleEditClick = (e: React.MouseEvent, spec: EventSpec, rect: any, selector: string) => {
     e.stopPropagation();
@@ -172,9 +150,8 @@ const SpecOutline: React.FC = () => {
               {!isHovered ? (
                 <div
                   key="compact"
-                  className="gtm-spec-label-compact"
+                  className="gtm-spec-label-compact gtm-spec-label"
                   onClick={(e) => handleEditClick(e, mainSpec, group.rect, group.selector)}
-                  style={specLabelStyle}
                 >
                   <Tag size={12} fill="white" />
                   {mainSpec.eventName}
@@ -203,9 +180,8 @@ const SpecOutline: React.FC = () => {
                   {group.specs.map(spec => (
                     <div
                       key={spec.id}
-                      className="gtm-spec-label-item"
+                      className="gtm-spec-label-item gtm-spec-label"
                       onClick={(e) => handleEditClick(e, spec, group.rect, group.selector)}
-                      style={specLabelStyle}
                     >
                       <Tag size={12} fill="white" />
                       {spec.eventName}
