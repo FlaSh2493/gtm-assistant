@@ -30,6 +30,8 @@ const SpecOutline: React.FC = () => {
 
       if (selectors.length > 0) {
         sendToWebview('get-rects', selectors);
+      } else {
+        setGroupedSpecs([]);
       }
     };
 
