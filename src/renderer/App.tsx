@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GTMAssistantProvider } from './app/providers';
-import AssistantOverlay from './widgets/assistant-overlay/ui/assistant-overlay';
-import HomePage from './pages/home/ui/home-page';
+import AssistantOverlay from './widgets/assistant-overlay';
+import HomePage from './pages/home-page';
 import { configStorage } from './entities/config/api/config-storage';
 import { AppConfig } from './entities/config/model/types';
 import { Power, Globe, ChevronLeft, ChevronRight, RotateCw, Home } from 'lucide-react';

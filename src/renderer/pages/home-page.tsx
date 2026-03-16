@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Globe, ArrowRight, Shield, Layout, ExternalLink } from 'lucide-react';
-import GtmLogo from '../../../shared/ui/gtm-logo';
+import GtmLogo from '../shared/ui/gtm-logo';
+import HomeGuide from '../widgets/home-guide';
 
 interface HomeScreenProps {
   onNavigate: (url: string, mode?: 'spec' | 'verify') => void;
@@ -83,6 +84,8 @@ const HomePage: React.FC<HomeScreenProps> = ({ onNavigate }) => {
             분석 시작 <ArrowRight size={18} />
           </button>
         </motion.form>
+
+        <HomeGuide />
 
         <div className="home-secondary-actions">
           <motion.div

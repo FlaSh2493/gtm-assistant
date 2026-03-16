@@ -1,10 +1,9 @@
 import React from 'react';
-import { useGTMAssistant } from '../../../app/providers';
+import { useGTMAssistant } from '../app/providers';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import SpecList from '../../../features/spec/ui/spec-list';
-import VerificationDrawer from '../../../features/verification/ui/verification-drawer';
-import { electronStore } from '../../../shared/api/electron-store';
+import SpecList from '../features/spec/ui/spec-list';
+import { electronStore } from '../shared/api/electron-store';
 
 const AssistantDrawer: React.FC = () => {
   const { config, setMode, currentUrl, currentTitle, isDrawerOpen, setIsDrawerOpen, refreshSpecs } = useGTMAssistant();
@@ -119,11 +118,7 @@ const AssistantDrawer: React.FC = () => {
             </div>
 
             <div className="drawer-content">
-              {config.mode === 'spec' ? (
-                <SpecList />
-              ) : (
-                <VerificationDrawer />
-              )}
+              <SpecList />
             </div>
 
             <div style={{ padding: '12px 16px', borderTop: '1px solid #e5e7eb' }}>

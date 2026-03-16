@@ -17,7 +17,7 @@ interface WebviewElementInfo {
 interface GTMAssistantContextType {
   config: AppConfig;
   specs: EventSpec[];
-  setMode: (mode: 'spec' | 'verify') => void;
+  setMode: (mode: 'spec') => void;
   refreshSpecs: () => Promise<void>;
   selectedElement: WebviewElementInfo | null;
   setSelectedElement: (el: WebviewElementInfo | null) => void;
@@ -29,10 +29,6 @@ interface GTMAssistantContextType {
   setEditingSpec: (spec: EventSpec | null) => void;
   updateConfig: (updates: Partial<AppConfig>) => Promise<void>;
   isWebviewReady: boolean;
-  externalSpecs: EventSpec[] | null;
-  setExternalSpecs: (specs: EventSpec[] | null) => void;
-  gtmJson: any | null;
-  setGtmJson: (json: any | null) => void;
   currentUrl: string;
   currentTitle: string;
   isDrawerOpen: boolean;
@@ -65,8 +61,6 @@ export const GTMAssistantProvider: React.FC<Props> = ({ config, setConfig, child
   const [showAllBadges, setShowAllBadges] = useState(true);
   const [editingSpec, setEditingSpec] = useState<EventSpec | null>(null);
   const [isWebviewReady, setIsWebviewReady] = useState(false);
-  const [externalSpecs, setExternalSpecs] = useState<EventSpec[] | null>(null);
-  const [gtmJson, setGtmJson] = useState<any | null>(null);
   const [currentUrl, setCurrentUrl] = useState('');
   const [currentTitle, setCurrentTitle] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -247,7 +241,7 @@ export const GTMAssistantProvider: React.FC<Props> = ({ config, setConfig, child
     await configStorage.setConfig(newConfig);
   }, [config]);
 
-  const setMode = useCallback(async (mode: 'spec' | 'verify') => updateConfig({ mode }), [updateConfig]);
+  const setMode = useCallback(async (mode: 'spec') => updateConfig({ mode }), [updateConfig]);
 
   const refreshSpecs = useCallback(async () => {
     if (currentUrl) await loadSpecsForUrl(currentUrl);
@@ -268,16 +262,12 @@ export const GTMAssistantProvider: React.FC<Props> = ({ config, setConfig, child
     setEditingSpec,
     updateConfig,
     isWebviewReady,
-    externalSpecs,
-    setExternalSpecs,
-    gtmJson,
-    setGtmJson,
     currentUrl,
     currentTitle,
     isDrawerOpen,
     setIsDrawerOpen,
     sendToWebview,
-  }), [config, specs, setMode, refreshSpecs, selectedElement, hoveredElement, showAllBadges, editingSpec, updateConfig, isWebviewReady, externalSpecs, gtmJson, currentUrl, currentTitle, isDrawerOpen, sendToWebview]);
+  }), [config, specs, setMode, refreshSpecs, selectedElement, hoveredElement, showAllBadges, editingSpec, updateConfig, isWebviewReady, currentUrl, currentTitle, isDrawerOpen, sendToWebview]);
 
   return (
     <GTMAssistantContext.Provider value={contextValue}>

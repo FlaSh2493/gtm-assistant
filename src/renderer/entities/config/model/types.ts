@@ -1,6 +1,6 @@
 export interface AppConfig {
   enabled: boolean;
-  mode: 'spec' | 'verify';
+  mode: 'spec';
   showHover: boolean;
   selector: {
     dataAttributes: string[];
