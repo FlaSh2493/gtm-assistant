@@ -1,15 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Globe, ArrowRight, Shield, Layout, ExternalLink } from 'lucide-react';
 import GtmLogo from '../../../shared/ui/gtm-logo';
 
 interface HomeScreenProps {
-  url: string;
-  onUrlChange: (url: string) => void;
   onNavigate: (url: string, mode?: 'spec' | 'verify') => void;
 }
 
-const HomePage: React.FC<HomeScreenProps> = ({ url, onUrlChange, onNavigate }) => {
+const HomePage: React.FC<HomeScreenProps> = ({ onNavigate }) => {
+  const [url, setUrl] = useState('');
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (url.trim()) {
@@ -75,7 +75,7 @@ const HomePage: React.FC<HomeScreenProps> = ({ url, onUrlChange, onNavigate }) =
               type="text"
               placeholder="검수할 사이트 URL을 입력하세요"
               value={url}
-              onChange={(e) => onUrlChange(e.target.value)}
+              onChange={(e) => setUrl(e.target.value)}
               autoFocus
             />
           </div>

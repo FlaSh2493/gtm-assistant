@@ -57,6 +57,7 @@ body,
 
 /* Ensure any direct interactive children of mount are active */
 .app-header,
+.home-screen,
 .drawer-container,
 .spec-popover,
 .popover-overlay,

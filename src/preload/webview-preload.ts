@@ -5,6 +5,13 @@ import { ipcRenderer } from 'electron';
 
 const isTopFrame = window === window.top;
 const PRELOAD_VERSION = '1.0.5-shield';
+
+const canUseIpc = process.isMainFrame;
+
+if (!canUseIpc) {
+  // 서브프레임에서는 IPC 불가 - postMessage 브릿지만 사용
+  console.log(`[GTM GA Assistant] Subframe without IPC: ${window.location.href}`);
+}
 console.log(`🚀 [GTM GA Assistant] Webview Preload Injected v${PRELOAD_VERSION} (${isTopFrame ? 'Top Frame' : 'Subframe: ' + window.location.href})`);
 
 // 클릭 차단 여부 - spec 모드일 때 true. 기본값은 false로 설정 (안전성).
@@ -15,7 +22,7 @@ let hoverDebounceTimeout: any = null;
 let rafId: number | null = null;
 let lastSentRects: string = ''; // JSON stringified for easy deep comparison
 
-ipcRenderer.on('set-spec-mode', (_event, active: boolean) => {
+if (canUseIpc) ipcRenderer.on('set-spec-mode', (_event, active: boolean) => {
   specModeActive = active;
 });
 
@@ -34,7 +41,7 @@ const ensureSelectionStyle = (enabled: boolean) => {
   }
 };
 
-ipcRenderer.on('set-selection-enabled', (_event, enabled: boolean) => {
+if (canUseIpc) ipcRenderer.on('set-selection-enabled', (_event, enabled: boolean) => {
   selectionEnabled = enabled;
   ensureSelectionStyle(enabled);
 });
@@ -187,6 +194,7 @@ const getOffsetRect = (el: HTMLElement) => {
 };
 
 const handleHover = (target: HTMLElement, includeRecommendations: boolean = true) => {
+  if (!canUseIpc) return;
   ipcRenderer.send('webview-ipc-relay', 'webview-hover', {
     tagName: target.tagName,
     className: target.className,
@@ -201,6 +209,7 @@ const handleHover = (target: HTMLElement, includeRecommendations: boolean = true
 };
 
 const handleClick = (target: HTMLElement) => {
+  if (!canUseIpc) return;
   ipcRenderer.send('webview-ipc-relay', 'webview-click', {
     tagName: target.tagName,
     rect: getOffsetRect(target),
@@ -245,7 +254,7 @@ document.addEventListener('pointermove', (e) => {
     } else {
       if (lastHoveredElement) {
         lastHoveredElement = null;
-        ipcRenderer.send('webview-ipc-relay', 'webview-hover', null);
+        if (canUseIpc) ipcRenderer.send('webview-ipc-relay', 'webview-hover', null);
       }
     }
   });
@@ -277,7 +286,7 @@ document.addEventListener('mouseup', blockEventInSpecMode, true);
 document.addEventListener('click', blockEventInSpecMode, true);
 
 // IPC Handler for messages from renderer
-ipcRenderer.on('highlight-element', (_event, selector) => {
+if (canUseIpc) ipcRenderer.on('highlight-element', (_event, selector) => {
   const el = document.querySelector(selector);
   if (el) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -287,7 +296,7 @@ ipcRenderer.on('highlight-element', (_event, selector) => {
 // Meta(Cmd) 키 상태를 renderer에 전달 (webview 포커스 중에도 cmd 감지)
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Meta') {
-    ipcRenderer.send('webview-ipc-relay', 'webview-cmd-key', { pressed: true });
+    if (canUseIpc) ipcRenderer.send('webview-ipc-relay', 'webview-cmd-key', { pressed: true });
     if (specModeActive) {
       selectionEnabled = true;
       ensureSelectionStyle(true);
@@ -296,12 +305,12 @@ document.addEventListener('keydown', (e) => {
 });
 document.addEventListener('keyup', (e) => {
   if (e.key === 'Meta') {
-    ipcRenderer.send('webview-ipc-relay', 'webview-cmd-key', { pressed: false });
+    if (canUseIpc) ipcRenderer.send('webview-ipc-relay', 'webview-cmd-key', { pressed: false });
     selectionEnabled = false;
     ensureSelectionStyle(false);
     if (lastHoveredElement) {
       lastHoveredElement = null;
-      ipcRenderer.send('webview-ipc-relay', 'webview-hover', null);
+      if (canUseIpc) ipcRenderer.send('webview-ipc-relay', 'webview-hover', null);
     }
   }
 });
@@ -310,6 +319,7 @@ document.addEventListener('keyup', (e) => {
 // Scroll detection: notify renderer to hide overlays while scrolling
 let scrollEndTimeout: any = null;
 window.addEventListener('scroll', () => {
+  if (!canUseIpc) return;
   ipcRenderer.send('webview-ipc-relay', 'webview-scrolling', true);
   if (scrollEndTimeout) clearTimeout(scrollEndTimeout);
   scrollEndTimeout = setTimeout(() => {
@@ -358,7 +368,7 @@ const getClippedRect = (el: HTMLElement): { top: number; left: number; width: nu
   };
 };
 
-ipcRenderer.on('get-rects', (_event, selectors: string[]) => {
+if (canUseIpc) ipcRenderer.on('get-rects', (_event, selectors: string[]) => {
   const rects: Record<string, any> = {};
   const offset = getIframeOffset();
   lastSentRects = ''; // 항상 최신 rects를 전송 (캐시 무효화)

@@ -3,6 +3,7 @@
  */
 export const INTERACTIVE_SELECTORS = [
   '.app-header',
+  '.home-screen',
   '.drawer-container',
   '.spec-popover',
   '.popover-overlay',

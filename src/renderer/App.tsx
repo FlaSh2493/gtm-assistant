@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GTMAssistantProvider } from './app/providers';
 import AssistantOverlay from './widgets/assistant-overlay/ui/assistant-overlay';
 import HomePage from './pages/home/ui/home-page';
@@ -195,7 +195,7 @@ const App: React.FC = () => {
   const handleBack = () => window.electronAPI.doWebviewAction('goBack');
   const handleForward = () => window.electronAPI.doWebviewAction('goForward');
   const handleReload = () => window.electronAPI.doWebviewAction('reload');
-  const handleOpenDevTools = () => window.electronAPI.doWebviewAction('openDevTools');
+  const handleOpenDevTools = () => window.electronAPI.openUIDevTools();
 
   // initialUrl이 준비되기 전까지 로딩 표시
   if (!initialUrl || !config) return null;
@@ -261,16 +261,11 @@ const App: React.FC = () => {
       </header>
 
       <main className="app-main">
-        <div style={{ position: 'absolute', inset: 0, zIndex: showHome ? 1 : -1, visibility: showHome ? 'visible' : 'hidden' }}>
-          <HomePage
-            url={inputUrl}
-            onUrlChange={(val: string) => {
-              setInputUrl(val);
-              setIsEditingUrl(true);
-            }}
-            onNavigate={navigateTo}
-          />
-        </div>
+        {showHome && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+            <HomePage onNavigate={navigateTo} />
+          </div>
+        )}
         <div className="webview-container" ref={containerRef} style={{ visibility: showHome ? 'hidden' : 'visible' }}>
             {isLoading && !showHome && (
               <div className="webview-loading-overlay">

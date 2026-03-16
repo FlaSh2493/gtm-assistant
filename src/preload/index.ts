@@ -36,5 +36,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   relayScroll: (x: number, y: number, deltaX: number, deltaY: number) => {
     ipcRenderer.send('relay-scroll', { x, y, deltaX, deltaY });
   },
+  openUIDevTools: () => {
+    ipcRenderer.send('open-ui-devtools');
+  },
 });
 

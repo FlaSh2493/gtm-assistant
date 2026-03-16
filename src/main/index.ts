@@ -1,4 +1,4 @@
-import { app, BaseWindow, WebContentsView, ipcMain, shell, screen } from 'electron';
+import { app, BaseWindow, WebContentsView, ipcMain, shell, screen, Menu, MenuItem } from 'electron';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
@@ -67,6 +67,23 @@ function createWindow() {
 
   uiView.webContents.on('destroyed', () => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+  });
+
+  // BaseWindow에는 webContents가 없으므로 컨텍스트 메뉴의 Inspect/toggleDevTools가
+  // undefined를 참조해 크래시가 발생함. 직접 핸들링해서 방지.
+  uiView.webContents.on('context-menu', (e, params) => {
+    e.preventDefault();
+    const menu = new Menu();
+    menu.append(new MenuItem({
+      label: 'Inspect Element',
+      click: () => {
+        uiView!.webContents.inspectElement(params.x, params.y);
+        if (!uiView!.webContents.isDevToolsOpened()) {
+          uiView!.webContents.openDevTools({ mode: 'detach' });
+        }
+      },
+    }));
+    menu.popup();
   });
 
   const forwardEvent = (channel: string, ...args: any[]) => {
@@ -156,6 +173,37 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
 
+  // BaseWindow는 BrowserWindow가 아니라 기본 메뉴의 toggleDevTools role이
+  // getFocusedWindow() → undefined 를 참조해 크래시 발생.
+  // 직접 빌드한 메뉴로 교체해 uiView를 명시적으로 참조.
+  const isMac = process.platform === 'darwin';
+  const devToolsMenu = {
+    label: 'View',
+    submenu: [
+      { role: 'reload' as const },
+      { role: 'forceReload' as const },
+      {
+        label: 'Toggle Developer Tools',
+        accelerator: isMac ? 'Alt+Command+I' : 'Ctrl+Shift+I',
+        click: () => openUIDevTools(),
+      },
+      { type: 'separator' as const },
+      { role: 'resetZoom' as const },
+      { role: 'zoomIn' as const },
+      { role: 'zoomOut' as const },
+      { type: 'separator' as const },
+      { role: 'togglefullscreen' as const },
+    ],
+  };
+  const template: Electron.MenuItemConstructorOptions[] = [
+    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    { role: 'fileMenu' as const },
+    { role: 'editMenu' as const },
+    devToolsMenu,
+    { role: 'windowMenu' as const },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+
   app.on('activate', () => {
     if (BaseWindow.getAllWindows().length === 0) createWindow();
   });
@@ -192,6 +240,17 @@ ipcMain.on('webview-action', (_event, { action }) => {
     case 'openDevTools': guestView.webContents.openDevTools({ mode: 'detach' }); break;
   }
 });
+
+const openUIDevTools = () => {
+  if (!uiView) return;
+  uiView.webContents.openDevTools({ mode: 'detach' });
+  uiView.webContents.once('devtools-opened', () => {
+    const dtWC = uiView?.webContents.devToolsWebContents;
+    if (dtWC) dtWC.reload();
+  });
+};
+
+ipcMain.on('open-ui-devtools', openUIDevTools);
 
 ipcMain.on('set-cmd-pressed', (_event, pressed: boolean) => {
   isCmdPressed = pressed;
