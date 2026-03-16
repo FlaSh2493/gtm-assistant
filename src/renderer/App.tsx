@@ -4,7 +4,7 @@ import AssistantOverlay from './widgets/assistant-overlay/ui/assistant-overlay';
 import HomePage from './pages/home/ui/home-page';
 import { configStorage } from './entities/config/api/config-storage';
 import { AppConfig } from './entities/config/model/types';
-import { Power, MousePointer2, Globe, ChevronLeft, ChevronRight, RotateCw, Home} from 'lucide-react';
+import { Power, Globe, ChevronLeft, ChevronRight, RotateCw, Home} from 'lucide-react';
 import { resolveUrl } from './shared/lib/url-resolver';
 import { INTERACTIVE_SELECTORS } from './shared/config/interactive-selectors';
 import GtmLogo from './shared/ui/gtm-logo';
@@ -186,11 +186,11 @@ const App: React.FC = () => {
     await updateConfigInAppOrAssist(newConfig);
   };
 
-  const handleModeChange = async (mode: 'spec' | 'verify') => {
-    if (!config) return;
-    const newConfig = { ...config, mode };
-    await updateConfigInAppOrAssist(newConfig);
-  };
+  // const handleModeChange = async (mode: 'spec' | 'verify') => {
+  //   if (!config) return;
+  //   const newConfig = { ...config, mode };
+  //   await updateConfigInAppOrAssist(newConfig);
+  // };
 
   const handleBack = () => window.electronAPI.doWebviewAction('goBack');
   const handleForward = () => window.electronAPI.doWebviewAction('goForward');
@@ -222,9 +222,9 @@ const App: React.FC = () => {
 
         <form className="url-bar" onSubmit={handleUrlSubmit}>
           <Globe size={16} className="url-icon" />
-          <input 
-            type="text" 
-            value={inputUrl} 
+          <input
+            type="text"
+            value={inputUrl}
             onChange={(e) => {
               setInputUrl(e.target.value);
               setIsEditingUrl(true);
@@ -234,22 +234,22 @@ const App: React.FC = () => {
         </form>
 
         <div className="header-actions">
-          <div className="mode-toggle-group">
-            <button 
-              className={config?.mode === 'spec' ? 'active' : ''} 
+          {/* <div className="mode-toggle-group">
+            <button
+              className={config?.mode === 'spec' ? 'active' : ''}
               onClick={() => handleModeChange('spec')}
               title="명세 작성"
             >
               <MousePointer2 size={18} />
             </button>
-            {/* <button
+            <button
               className={config?.mode === 'verify' ? 'active' : ''}
               onClick={() => handleModeChange('verify')}
               title="명세 검증"
             >
               <CheckCircle2 size={18} />
-            </button> */}
-          </div>
+            </button>
+          </div> */}
           
           <button 
             className={`power-btn ${config?.enabled ? 'on' : 'off'}`}

@@ -4,9 +4,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import SpecList from '../../../features/spec/ui/spec-list';
 import VerificationDrawer from '../../../features/verification/ui/verification-drawer';
+import { electronStore } from '../../../shared/api/electron-store';
 
 const AssistantDrawer: React.FC = () => {
-  const { config, setMode, currentUrl, currentTitle, isDrawerOpen, setIsDrawerOpen } = useGTMAssistant();
+  const { config, setMode, currentUrl, currentTitle, isDrawerOpen, setIsDrawerOpen, refreshSpecs } = useGTMAssistant();
+
+  const handleClearAll = async () => {
+    if (!window.confirm('모든 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+    await electronStore.clear();
+    await refreshSpecs();
+  };
 
   const pageInfo = { title: currentTitle || 'Loading...', url: currentUrl || '' };
 
@@ -123,6 +130,24 @@ const AssistantDrawer: React.FC = () => {
               ) : (
                 <VerificationDrawer />
               )}
+            </div>
+
+            <div style={{ padding: '12px 16px', borderTop: '1px solid #e5e7eb' }}>
+              <button
+                onClick={handleClearAll}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  background: 'transparent',
+                  border: '1px solid #fca5a5',
+                  borderRadius: '6px',
+                  color: '#ef4444',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                전체 데이터 초기화
+              </button>
             </div>
           </motion.div>
         )}

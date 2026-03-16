@@ -303,6 +303,7 @@ ipcMain.on('send-to-webview', (_event, { channel, args }) => {
 ipcMain.handle('store:get', (_event, key) => store.get(key));
 ipcMain.handle('store:set', (_event, key, value) => store.set(key, value));
 ipcMain.handle('store:delete', (_event, key) => store.delete(key as string));
+ipcMain.handle('store:clear', () => store.clear());
 
 ipcMain.handle('file:save-csv', async (_event, { content, filename }) => {
   const { dialog } = await import('electron');

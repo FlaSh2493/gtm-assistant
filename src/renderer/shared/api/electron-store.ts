@@ -11,5 +11,9 @@ export const electronStore = {
 
   set: async (key: string, value: any): Promise<void> => {
     return window.electronAPI.invoke('store:set', key, value);
-  }
+  },
+
+  clear: async (): Promise<void> => {
+    return window.electronAPI.invoke('store:clear');
+  },
 };

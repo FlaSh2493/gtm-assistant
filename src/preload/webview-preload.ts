@@ -237,7 +237,7 @@ document.addEventListener('pointermove', (e) => {
     rafId = null;
     const elements = document.elementsFromPoint(e.clientX, e.clientY);
     const rawTarget = elements.find(el => el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT') as HTMLElement | undefined;
-    const target = (rawTarget?.closest('a, button, input, select, textarea, [role="button"]') as HTMLElement) || rawTarget as HTMLElement;
+    const target = rawTarget as HTMLElement;
 
     if (target && target !== document.documentElement && target !== document.body) {
       if (target !== lastHoveredElement) {
