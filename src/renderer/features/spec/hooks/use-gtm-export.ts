@@ -17,9 +17,19 @@ interface GtmContainer {
   };
 }
 
+export interface ExportResult {
+  hardDeleteIds: string[]; // deletedAt 있는 것들 → export 후 hard delete 대상
+}
+
 export const useGtmExport = () => {
-  const exportGtmJson = useCallback((specs: EventSpec[]) => {
-    const timestamp = new Date().toISOString();
+  const exportGtmJson = useCallback((specs: EventSpec[], measurementId?: string): ExportResult => {
+    const now = new Date();
+    const timestamp = now.toISOString();
+
+    // deletedAt 있는 것은 export 제외, 나중에 hard delete
+    const hardDeleteIds = specs.filter(s => s.deletedAt).map(s => s.id);
+    const exportableSpecs = specs.filter(s => !s.deletedAt);
+
     const container: GtmContainer = {
       exportFormatVersion: 2,
       exportTime: timestamp,
@@ -28,130 +38,119 @@ export const useGtmExport = () => {
         accountId: "0",
         containerId: "0",
         containerVersionId: "0",
+        container: {
+          accountId: "0",
+          containerId: "0",
+          name: `GTM GA Assistant Export`,
+          usageContext: ["WEB"]
+        },
         name: `GTM GA Assistant Export ${new Date().toLocaleDateString()}`,
         tag: [],
         trigger: [],
         variable: [],
         builtInVariable: [
-          { type: "v", name: "Page URL" },
-          { type: "v", name: "Click Element" },
-          { type: "v", name: "Click Classes" },
-          { type: "v", name: "Click ID" },
-          { type: "v", name: "Click Target" },
-          { type: "v", name: "Click URL" },
-          { type: "v", name: "Click Text" }
+          { accountId: "0", containerId: "0", type: "EVENT", name: "Event" },
+          { accountId: "0", containerId: "0", type: "PAGE_URL", name: "Page URL" },
+          { accountId: "0", containerId: "0", type: "PAGE_HOSTNAME", name: "Page Hostname" },
+          { accountId: "0", containerId: "0", type: "PAGE_PATH", name: "Page Path" },
+          { accountId: "0", containerId: "0", type: "REFERRER", name: "Referrer" }
         ]
       }
     };
 
-    const variableMap = new Map<string, string>(); // key: identifier, value: gtm-variable-name
+    const variableMap = new Map<string, string>(); // key: param key, value: gtm variable name
+    let idCounter = 1;
 
-    specs.forEach((spec, specIdx) => {
+    exportableSpecs.forEach((spec) => {
       // 1. Trigger 생성
-      const triggerId = `trigger_${spec.id || specIdx}`;
+      const triggerId = String(idCounter++);
       const trigger: any = {
         accountId: "0",
         containerId: "0",
         triggerId: triggerId,
         name: `[GTM AST] ${spec.eventName} - ${spec.eventId}`,
+        type: "CUSTOM_EVENT",
+        customEventFilter: [
+          {
+            type: "EQUALS",
+            parameter: [
+              { type: "TEMPLATE", key: "arg0", value: "{{_event}}" },
+              { type: "TEMPLATE", key: "arg1", value: spec.eventName }
+            ]
+          }
+        ],
         autoEventFilter: [],
         filter: []
       };
 
-      // 모든 이벤트를 Custom Event 트리거로 단일화
-      trigger.type = "custom_event";
-      trigger.parameter = [
-        { type: "template", key: "eventName", value: spec.eventName }
-      ];
-
-      // 셀렉터 정보 및 설명 보존 (GTM 트리거의 '메모' 필드에 기록)
+      // 트리거 notes에 UUID + 셀렉터 + 설명 보존
       const triggerNotes = [
+        `[GTM AST ID] ${spec.id}`,
         spec.triggerDescription ? `[설명] ${spec.triggerDescription}` : '',
         spec.selector ? `[GTM AST Selector] ${spec.selector}` : ''
       ].filter(Boolean).join('\n');
 
-      if (triggerNotes) {
-        trigger.notes = triggerNotes;
-      }
-
+      trigger.notes = triggerNotes;
       container.containerVersion.trigger.push(trigger);
 
-      // 2. Variables 생성 및 Tag 연동용 파라미터 구성
+      // 2. Variables 생성
       const tagParams: any[] = [
-        { type: "template", key: "eventName", value: spec.eventName }
+        { type: "TEMPLATE", key: "eventName", value: spec.eventName },
+        { type: "TEMPLATE", key: "measurementIdOverride", value: measurementId || "G-XXXXXXXXXX" }
       ];
-
       const eventSettingsParams: any[] = [];
 
-      (spec.parameters || []).forEach((param, paramIdx) => {
+      (spec.parameters || []).forEach((param) => {
         if (!param.key) return;
 
         let variableName = `[GTM AST] ${param.key}`;
-        // 중복 방지 (키값이 같으면 동일 변수로 간주)
         if (variableMap.has(param.key)) {
           variableName = variableMap.get(param.key)!;
         } else {
-          // 새 변수 생성
           const variable: any = {
             accountId: "0",
             containerId: "0",
-            variableId: `var_${spec.id}_${paramIdx}`,
+            variableId: String(idCounter++),
             name: variableName,
-            parameter: []
+            parameter: [],
+            notes: `[GTM AST ID] ${spec.id}${param.description ? '\n' + param.description : ''}`
           };
 
           const paramType = param.type || 'dataLayer';
-          const technicalKey = param.key; // functional data identifier
-          const desc = param.description || ''; // strictly for documentation metadata
-
-          // 변수 설명(Notes)에 기획 의도 기록
-          if (desc) {
-            variable.notes = desc;
-          }
+          const technicalKey = param.key;
 
           if (paramType === 'dataLayer') {
-            // Data Layer Variable: Always use technicalKey from the Key field
-            variable.type = "dlv";
+            variable.type = "v";
             variable.parameter.push(
-              { type: "template", key: "name", value: technicalKey },
-              { type: "integer", key: "dataLayerVersion", value: "2" }
+              { type: "TEMPLATE", key: "name", value: technicalKey },
+              { type: "INTEGER", key: "dataLayerVersion", value: "2" }
             );
           } else if (paramType === 'storage') {
-            // Custom JS Variable for Storage
             variable.type = "jsm";
             const storageType = technicalKey.toLowerCase().includes('session') ? 'sessionStorage' : 'localStorage';
             variable.parameter.push({
-              type: "template",
+              type: "TEMPLATE",
               key: "javascript",
               value: `function() { try { return ${storageType}.getItem('${technicalKey}'); } catch(e) { return undefined; } }`
             });
           } else if (paramType === 'dom') {
-            // DOM Element Variable
-            variable.type = "v";
-            let attrName = technicalKey;
-            if (technicalKey === 'textContent') {
-              attrName = ''; // set to text
-            }
-
+            variable.type = "d";
             variable.parameter.push(
-              { type: "template", key: "elementId", value: spec.selector },
-              { type: "template", key: "attributeName", value: attrName },
-              { type: "template", key: "selectorType", value: "css" }
+              { type: "TEMPLATE", key: "elementId", value: spec.selector },
+              { type: "TEMPLATE", key: "attributeName", value: technicalKey === 'textContent' ? '' : technicalKey },
+              { type: "TEMPLATE", key: "selectorType", value: "css" }
             );
           } else if (paramType === 'cookie') {
-            // First Party Cookie
             variable.type = "c";
-            variable.parameter.push({ type: "template", key: "name", value: technicalKey });
+            variable.parameter.push({ type: "TEMPLATE", key: "name", value: technicalKey });
           } else if (paramType === 'js') {
-            // JavaScript Variable
             variable.type = "js";
-            variable.parameter.push({ type: "template", key: "name", value: technicalKey });
+            variable.parameter.push({ type: "TEMPLATE", key: "name", value: technicalKey });
           } else {
-            // Default: Data Layer Variable
-            variable.type = "dlv";
+            variable.type = "v";
             variable.parameter.push(
-              { type: "template", key: "name", value: technicalKey },
-              { type: "integer", key: "dataLayerVersion", value: "2" }
+              { type: "TEMPLATE", key: "name", value: technicalKey },
+              { type: "INTEGER", key: "dataLayerVersion", value: "2" }
             );
           }
 
@@ -160,52 +159,55 @@ export const useGtmExport = () => {
         }
 
         eventSettingsParams.push({
-          type: "map",
+          type: "MAP",
           map: [
-            { type: "template", key: "parameter", value: param.key },
-            { type: "template", key: "parameterValue", value: `{{${variableName}}}` }
+            { type: "TEMPLATE", key: "parameter", value: param.key },
+            { type: "TEMPLATE", key: "parameterValue", value: `{{${variableName}}}` }
           ]
         });
       });
 
       if (eventSettingsParams.length > 0) {
         tagParams.push({
-          type: "list",
+          type: "LIST",
           key: "eventSettingsTable",
           list: eventSettingsParams
         });
       }
 
-      // 3. Tag 생성
-      const tagId = `tag_${spec.id || specIdx}`;
+      // 3. Tag 생성 - notes에 UUID 저장 (import 시 매칭 핵심)
+      const tagNotes = [
+        `[GTM AST ID] ${spec.id}`,
+        spec.note
+      ].filter(Boolean).join('\n');
+
       const tag: any = {
         accountId: "0",
         containerId: "0",
-        tagId: tagId,
+        tagId: String(idCounter++),
         name: `[GTM AST] GA4 Event - ${spec.eventName} (${spec.eventId})`,
-        type: "ga4e", // GA4 Event
+        type: "gaawe",
         parameter: tagParams,
         firingTriggerId: [triggerId],
-        tagFiringOption: "oncePerEvent",
-        notes: [spec.triggerDescription, spec.note].filter(Boolean).join('\n')
+        tagFiringOption: "ONCE_PER_EVENT",
+        notes: tagNotes
       };
-      // GA4 Configuration Tag reference (Placeholder or dummy)
-      tagParams.push({ type: "template", key: "measurementId", value: "G-XXXXXXXXXX" });
 
       container.containerVersion.tag.push(tag);
     });
 
-    // File Download
+    // 파일 다운로드
     const jsonString = JSON.stringify(container, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement('a');
     link.setAttribute('href', url);
     link.setAttribute('download', `gtm-recipe-${timestamp.split('T')[0]}.json`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    return { hardDeleteIds };
   }, []);
 
   return { exportGtmJson };

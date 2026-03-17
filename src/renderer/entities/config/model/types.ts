@@ -5,6 +5,7 @@ export interface AppConfig {
   selector: {
     dataAttributes: string[];
   };
+  measurementId?: string;
   gtmAuth?: {
     accountId: string;
     containerId: string;
