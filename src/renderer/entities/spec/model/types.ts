@@ -30,6 +30,7 @@ export interface EventSpec {
   note?: string;
   createdAt: string;
   visible: boolean;
+  deletedAt?: string; // soft delete: set when deleted in app, hard deleted after GTM export
 }
 
 export interface CSVColumn {

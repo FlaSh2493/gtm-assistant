@@ -307,11 +307,13 @@ body,
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   background: white;
   z-index: 10000;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 40px 20px;
+  box-sizing: border-box;
 }
 
 .home-bg-blobs {
@@ -622,8 +624,9 @@ body,
 }
 
 .home-footer {
-  position: absolute;
-  bottom: 20px;
+  margin-top: auto;
+  padding-top: 24px;
+  padding-bottom: 8px;
   font-size: 12px;
   color: #94a3b8;
 }

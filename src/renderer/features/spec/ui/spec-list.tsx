@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useGTMAssistant } from '../../../app/providers';
 import { Download, Upload, Settings, X, Eye } from 'lucide-react';
 import { storage } from '../../../shared/api/storage';
@@ -6,7 +6,8 @@ import './spec-list.css';
 
 import { useCSVExport } from '../hooks/use-csv-export';
 import { useGtmExport } from '../hooks/use-gtm-export';
-import { useGtmImport } from '../hooks/use-gtm-import';
+import { useGtmImport, ImportResult } from '../hooks/use-gtm-import';
+import ImportMergeDialog, { MergeResolution } from './import-merge-dialog';
 
 const SpecList: React.FC = () => {
   const { specs, refreshSpecs, setSelectedElement, setEditingSpec, config, currentUrl } = useGTMAssistant();
@@ -14,33 +15,84 @@ const SpecList: React.FC = () => {
   const { exportGtmJson } = useGtmExport();
   const { importGtmJson } = useGtmImport();
 
+  const [mergeResult, setMergeResult] = useState<ImportResult | null>(null);
+
   const currentHostname = currentUrl ? new URL(currentUrl).hostname : 'localhost';
-
-
 
   const handleDelete = async (id: string) => {
     if (confirm('정말 삭제하시겠습니까?')) {
-      await storage.deleteSpec(currentHostname, id);
+      // soft delete: deletedAt 마킹
+      const spec = specs.find(s => s.id === id);
+      if (!spec) return;
+      await storage.saveSpec(currentHostname, { ...spec, deletedAt: new Date().toISOString() });
       await refreshSpecs();
     }
   };
 
   const handleImportGtmJson = async () => {
     try {
-      const imported = await importGtmJson();
-      if (imported.length === 0) {
-        alert('가져올 수 있는 이벤트가 없습니다.');
-        return;
-      }
-      if (!confirm(`${imported.length}개 이벤트를 불러옵니다. 현재 작업(${specs.length}개)을 덮어씁니다. 계속하시겠습니까?`)) return;
+      const { result } = await importGtmJson(currentHostname, specs);
 
-      const key = `specs_${currentHostname}`;
-      await window.electronAPI.invoke('store:set', key, imported);
-      await refreshSpecs();
+      if (result.needsReview.length > 0) {
+        setMergeResult(result);
+      } else {
+        await applyImport(result, []);
+        alert(`불러오기 완료\n신규 추가 ${result.autoAdded.length}개 · 동일 ${result.autoSkipped.length}개 스킵`);
+      }
     } catch (err: any) {
       if (err.message !== '파일을 선택하지 않았습니다.') {
         alert(err.message || '불러오기에 실패했습니다.');
       }
+    }
+  };
+
+  const applyImport = async (result: ImportResult, resolutions: MergeResolution[]) => {
+    const updatedSpecs = [...specs];
+
+    // 자동 추가
+    result.autoAdded.forEach(spec => {
+      if (!updatedSpecs.find(s => s.id === spec.id)) {
+        updatedSpecs.push(spec);
+      }
+    });
+
+    // 검토 항목 해결
+    resolutions.forEach(({ item, choice }) => {
+      const idx = updatedSpecs.findIndex(s => s.id === item.stored.id);
+      if (idx === -1) return;
+
+      if (choice === 'use-gtm' && item.imported) {
+        // GTM 버전으로 교체 (id 유지)
+        updatedSpecs[idx] = { ...item.imported, id: item.stored.id, deletedAt: undefined };
+      } else if (choice === 'keep-mine') {
+        // 내 것 유지, deletedAt 제거 (deleted-in-app 복원)
+        updatedSpecs[idx] = { ...item.stored, deletedAt: undefined };
+      } else if (choice === 'delete') {
+        // 삭제 확정: deletedAt 유지 (export 후 hard delete됨)
+        // 아무것도 안 함
+      }
+    });
+
+    const key = `specs_${currentHostname}`;
+    await window.electronAPI.invoke('store:set', key, updatedSpecs);
+    await refreshSpecs();
+    setMergeResult(null);
+  };
+
+  const handleMergeApply = async (resolutions: MergeResolution[]) => {
+    if (!mergeResult) return;
+    await applyImport(mergeResult, resolutions);
+  };
+
+  const handleExportGtmJson = async () => {
+    const { hardDeleteIds } = exportGtmJson(specs, config?.measurementId);
+
+    // export 완료 후 deletedAt 있는 것들 hard delete
+    if (hardDeleteIds.length > 0) {
+      const remaining = specs.filter(s => !hardDeleteIds.includes(s.id));
+      const key = `specs_${currentHostname}`;
+      await window.electronAPI.invoke('store:set', key, remaining);
+      await refreshSpecs();
     }
   };
 
@@ -58,39 +110,38 @@ const SpecList: React.FC = () => {
   };
 
   const handleEdit = (spec: any) => {
-    // We don't have direct access to the element, but we can send the selector to the popover
-    // The popover will try to get the rect from the webview if needed.
     setSelectedElement({
       tagName: 'ELEMENT',
-      rect: { top: 100, left: 100, width: 0, height: 0 } as any, // Placeholder, popover will adjust
-      selector: spec.selector
+      rect: { top: 100, left: 100, width: 0, height: 0 } as any,
+      selector: spec.selector,
     });
     setEditingSpec(spec);
   };
 
+  const activeSpecs = specs.filter(s => !s.deletedAt);
+
   return (
     <div className="spec-list">
       <div className="list-actions">
-        <div className="stats">총 {specs.length}개 항목</div>
+        <div className="stats">총 {activeSpecs.length}개 항목</div>
         <div className="btn-group">
-
           <button className="export-btn secondary" onClick={handleImportGtmJson}>
             <Upload size={14} /> 불러오기
           </button>
           <button className="export-btn secondary" onClick={handleExportCSV}>
             <Download size={14} /> CSV
           </button>
-          <button className="export-btn gtm" onClick={() => exportGtmJson(specs)}>
-           <Download size={14} /> GTM JSON
+          <button className="export-btn gtm" onClick={handleExportGtmJson}>
+            <Download size={14} /> GTM JSON
           </button>
         </div>
       </div>
 
       <div className="items">
-        {specs.length === 0 ? (
+        {activeSpecs.length === 0 ? (
           <div className="empty-state">등록된 명세가 없습니다.</div>
         ) : (
-          specs.map(spec => (
+          activeSpecs.map(spec => (
             <div key={spec.id} className="spec-item">
               <div className="item-info">
                 <div className="event-header-row">
@@ -124,6 +175,14 @@ const SpecList: React.FC = () => {
           ))
         )}
       </div>
+
+      {mergeResult && (
+        <ImportMergeDialog
+          result={mergeResult}
+          onApply={handleMergeApply}
+          onCancel={() => setMergeResult(null)}
+        />
+      )}
     </div>
   );
 };
